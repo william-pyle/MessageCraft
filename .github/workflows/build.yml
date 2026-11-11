@@ -48,4 +48,6 @@ jobs:
           files: |
             dist/MessageCraft-windows-x64.msi
             dist/MessageCraft-windows.zip
+          name: MessageCraft ${{ github.ref_name }}
+          body_path: packaging/release-notes.md
           generate_release_notes: true
