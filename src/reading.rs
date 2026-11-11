@@ -2,7 +2,7 @@
 
 use egui::{Align2, Color32, Frame, Margin, Rect, ScrollArea, Sense, Stroke, StrokeKind, Ui, Vec2, pos2, vec2};
 
-use crate::app::{App, Conn, MediaSlot};
+use crate::app::{App, Conn, MediaSlot, PairStep};
 use crate::icons::{self, Icon};
 use crate::model::{Conversation, Media, Message};
 use crate::theme;
@@ -542,6 +542,7 @@ impl App {
                 }
                 _ => {}
             }
+            let qr_mode = matches!(self.pair_step, PairStep::Qr);
             ui.label(egui::RichText::new("Use MessageCraft with your phone").font(theme::semibold(22.0)).color(t.text));
             ui.label(
                 egui::RichText::new("Read and send your phone's texts from this computer. MessageCraft pairs with Google Messages on your Android phone, the same way Google Messages for web does.")
@@ -549,11 +550,19 @@ impl App {
                     .color(t.text_dim),
             );
             ui.add_space(6.0);
-            let steps = [
-                "Open Google Messages on your Android phone.",
-                "Tap your profile picture (or the ⋮ menu), then Device pairing.",
-                "Tap QR code scanner and point your phone at the code.",
-            ];
+            let steps: [&str; 3] = if qr_mode {
+                [
+                    "Open Google Messages on your Android phone.",
+                    "Tap your profile picture (or the ⋮ menu), then Device pairing.",
+                    "Tap QR code scanner and point your phone at the code.",
+                ]
+            } else {
+                [
+                    "Click Sign in with Google and sign in with the Google account your phone's Google Messages uses.",
+                    "Google finds your phone, and Google Messages on it shows a few emoji.",
+                    "On your phone, tap the emoji MessageCraft shows. That's it.",
+                ]
+            };
             for (i, s) in steps.iter().enumerate() {
                 ui.horizontal(|ui| {
                     let (r, _) = ui.allocate_exact_size(Vec2::splat(24.0), Sense::hover());
@@ -563,16 +572,118 @@ impl App {
                 });
             }
             ui.add_space(6.0);
-            ui.label(egui::RichText::new("Your phone stays the place your messages live: it needs to be on and online for MessageCraft to sync and send. The pairing is kept on this computer, locked to your Windows account, so you only pair once.").font(theme::regular(12.0)).color(t.text_dim));
+            let note = if qr_mode {
+                "Newer versions of Google Messages pair with your Google account instead of a QR code. If your phone's Device pairing screen has no QR code scanner, go back and use Sign in with Google."
+            } else {
+                "Your phone's Device pairing screen should say \"sign in to the same Google Account\". Your phone stays the place your messages live: it needs to be on and online for MessageCraft to sync and send. You only pair once; the pairing is kept on this computer, locked to your Windows account."
+            };
+            ui.add(egui::Label::new(egui::RichText::new(note).font(theme::regular(12.0)).color(t.text_dim)).wrap());
             if !wide {
                 ui.add_space(8.0);
-                self.qr_block(ui);
+                self.pair_block(ui);
             }
         });
         if wide {
             u.add_space(30.0);
-            u.vertical(|ui| self.qr_block(ui));
+            u.vertical(|ui| self.pair_block(ui));
         }
+    }
+
+    /// The right-hand side of the pairing page: the choice, the sign-in under way, the emoji to
+    /// tap, or the QR code.
+    fn pair_block(&mut self, ui: &mut Ui) {
+        let t = self.t;
+        let size = 260.0;
+        ui.set_width(size + 20.0);
+        ui.spacing_mut().item_spacing.y = 10.0;
+        let error = self.pair_error.clone();
+        enum Show {
+            Choose,
+            SigningIn,
+            Contacting,
+            Emoji(String, Option<egui::TextureId>),
+            Qr,
+        }
+        let show = match &self.pair_step {
+            PairStep::Choose => Show::Choose,
+            PairStep::SigningIn => Show::SigningIn,
+            PairStep::Contacting => Show::Contacting,
+            PairStep::Emoji { emoji, image } => Show::Emoji(emoji.clone(), image.as_ref().map(|i| i.id())),
+            PairStep::Qr => Show::Qr,
+        };
+        match show {
+            Show::Choose => {
+                let (r, _) = ui.allocate_exact_size(Vec2::splat(size), Sense::hover());
+                ui.painter().rect_filled(r, 10.0, t.pill_quiet);
+                icons::paint(ui.painter(), Rect::from_center_size(r.center() - vec2(0.0, 20.0), Vec2::splat(84.0)), Icon::Phone, t.text_dim, t.accent);
+                ui.painter().text(pos2(r.center().x, r.center().y + 50.0), Align2::CENTER_CENTER, "Ready to pair", theme::medium(14.0), t.text_dim);
+                if let Some(e) = &error {
+                    ui.add(egui::Label::new(egui::RichText::new(e).font(theme::regular(12.5)).color(t.red)).wrap());
+                }
+                if widgets::primary_button(ui, &t, "Sign in with Google", true).clicked() {
+                    self.sign_in_with_google();
+                }
+                if widgets::secondary_button(ui, &t, "Use a QR code instead").clicked() {
+                    self.pair();
+                }
+            }
+            Show::SigningIn => {
+                self.waiting_card(ui, size, "Sign in in the window that opened", "Use the Google account your phone uses.");
+                if widgets::secondary_button(ui, &t, "Cancel").clicked() {
+                    self.cancel_pairing();
+                }
+            }
+            Show::Contacting => {
+                let sub = match &self.google_email {
+                    Some(e) => format!("Signed in as {e}. Finding your phone…"),
+                    None => "Finding your phone…".to_string(),
+                };
+                self.waiting_card(ui, size, "Contacting your phone", &sub);
+                if widgets::secondary_button(ui, &t, "Cancel").clicked() {
+                    self.cancel_pairing();
+                }
+            }
+            Show::Emoji(emoji, image) => {
+                let (r, _) = ui.allocate_exact_size(Vec2::splat(size), Sense::hover());
+                ui.painter().rect_filled(r, 10.0, t.pill_quiet);
+                let pic = Rect::from_center_size(r.center() - vec2(0.0, 18.0), Vec2::splat(150.0));
+                match image {
+                    Some(id) => {
+                        egui::Image::new((id, pic.size())).paint_at(ui, pic);
+                    }
+                    None => {
+                        ui.painter().text(pic.center(), Align2::CENTER_CENTER, &emoji, theme::regular(110.0), t.text);
+                    }
+                }
+                ui.painter().text(pos2(r.center().x, r.max.y - 30.0), Align2::CENTER_CENTER, "Tap this emoji on your phone", theme::semibold(15.0), t.text);
+                ui.add(egui::Label::new(egui::RichText::new("Google Messages on your phone is showing a few emoji. Tap the one above to finish pairing.").font(theme::regular(12.5)).color(t.text_dim)).wrap());
+                if widgets::secondary_button(ui, &t, "Cancel").clicked() {
+                    self.cancel_pairing();
+                }
+            }
+            Show::Qr => {
+                self.qr_block(ui);
+                if widgets::secondary_button(ui, &t, "Back").clicked() {
+                    self.cancel_pairing();
+                }
+            }
+        }
+    }
+
+    fn waiting_card(&self, ui: &mut Ui, size: f32, title: &str, sub: &str) {
+        let t = self.t;
+        let (r, _) = ui.allocate_exact_size(Vec2::splat(size), Sense::hover());
+        ui.painter().rect_filled(r, 10.0, t.pill_quiet);
+        let time = ui.input(|i| i.time) as f32;
+        let c = r.center() - vec2(0.0, 24.0);
+        for k in 0..8 {
+            let a = k as f32 / 8.0 * std::f32::consts::TAU + time * 2.5;
+            let fade = 0.25 + 0.75 * (k as f32 / 8.0);
+            ui.painter().circle_filled(c + vec2(a.cos(), a.sin()) * 26.0, 4.5, t.accent.linear_multiply(fade));
+        }
+        ui.painter().text(pos2(r.center().x, r.center().y + 34.0), Align2::CENTER_CENTER, title, theme::semibold(14.0), t.text);
+        widgets::clipped(ui.painter(), pos2(r.min.x + 14.0, r.center().y + 58.0), r.width() - 28.0, sub, theme::regular(12.0), t.text_dim);
+        ui.ctx().request_repaint_after(std::time::Duration::from_millis(33));
     }
 
     fn qr_block(&mut self, ui: &mut Ui) {
@@ -604,7 +715,7 @@ impl App {
             let msg = if matches!(self.conn, Conn::Pairing) { "Getting a code from Google…" } else if self.qr_expired { "The code expired." } else { "Ready to pair." };
             ui.painter().text(r.center(), Align2::CENTER_CENTER, msg, theme::regular(13.0), t.text_dim);
             ui.add_space(8.0);
-            if !matches!(self.conn, Conn::Pairing) && widgets::primary_button(ui, &t, "Show QR code", true).clicked() {
+            if self.qr_expired && widgets::primary_button(ui, &t, "Get a new code", true).clicked() {
                 self.pair();
             }
         }

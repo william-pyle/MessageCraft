@@ -85,6 +85,11 @@ impl Bridge {
         }
     }
 
+    /// Feed an event in as if the helper had sent it (used by the Google sign-in window).
+    pub fn sender(&self) -> Sender<Value> {
+        self.tx.clone()
+    }
+
     pub fn send(&self, cmd: Value) {
         let Some(stdin) = &self.stdin else { return };
         let stdin = stdin.clone();

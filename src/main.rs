@@ -11,6 +11,7 @@ mod icons;
 mod lists;
 mod model;
 mod reading;
+mod signin;
 mod theme;
 mod timefmt;
 mod widgets;
@@ -54,6 +55,9 @@ fn app_icon() -> egui::IconData {
 }
 
 fn main() -> eframe::Result {
+    if std::env::args().any(|a| a == "--google-signin") {
+        signin::run(app_icon());
+    }
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("MessageCraft")

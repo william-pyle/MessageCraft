@@ -4,7 +4,8 @@
 
 MessageCraft is a desktop app for reading and sending the SMS, MMS and RCS chat messages on your
 Android phone from a Windows PC. It pairs with Google Messages on your phone the same way Google
-Messages for web does (by scanning a QR code), then keeps your conversations in sync.
+Messages for web does (by signing in with your Google account and confirming with an emoji on your
+phone, or with a QR code on phones that still offer one), then keeps your conversations in sync.
 
 MessageCraft is an independent project. It is not made by, endorsed by or affiliated with Google.
 
@@ -12,8 +13,10 @@ MessageCraft is an independent project. It is not made by, endorsed by or affili
 
 ## Features
 
-- **Pair once with a QR code.** The pairing is saved on your PC and encrypted for your Windows
-  account (DPAPI), so MessageCraft reconnects on its own the next time it opens.
+- **Pair once with your Google account** (sign in, then tap the matching emoji on your phone), or
+  with a QR code on phones that still show a QR code scanner. The pairing is saved on your PC and
+  encrypted for your Windows account (DPAPI), so MessageCraft reconnects on its own the next time it
+  opens.
 - **Sync:** Inbox, Archived, and Spam & blocked folders, with unread counts, pinned conversations
   and grouping by date (Today, Yesterday, Earlier this week…).
 - **Read:** chat-style conversation view with day separators, group-chat sender names, reactions,
@@ -39,9 +42,14 @@ MessageCraft is an independent project. It is not made by, endorsed by or affili
    **Settings › Apps**.
    *Portable instead:* download `MessageCraft-windows.zip`, unzip it anywhere, and keep
    `MessageCraft.exe` and `messagecraft-bridge.exe` in the same folder.
-2. Open **MessageCraft** from the Start menu. It shows a QR code.
-3. On your Android phone, open **Google Messages**, tap your profile picture (or the **⋮** menu),
-   choose **Device pairing**, then **QR code scanner**, and scan the code.
+2. Open **MessageCraft** from the Start menu and click **Sign in with Google**.
+3. In the window that opens, sign in with the Google account your phone's Google Messages uses.
+   (On the phone, Google Messages › profile picture › **Device pairing** says "sign in to the same
+   Google Account".)
+4. Google Messages on your phone shows a few emoji. Tap the one MessageCraft shows.
+
+*Older phones:* if your phone's Device pairing screen has a **QR code scanner**, you can choose
+**Use a QR code instead** and scan the code MessageCraft shows.
 
 Your conversations appear within a few seconds. Your phone does the actual sending, so it needs to
 stay on and connected to the internet.
@@ -64,7 +72,7 @@ Everything lives in `%APPDATA%\MessageCraft`:
 
 | File | What it is |
 | --- | --- |
-| `session.bin` | The pairing keys, encrypted for your Windows account (DPAPI) |
+| `session.bin` | The pairing keys (and, for Google-account pairing, the Google session), encrypted for your Windows account (DPAPI) |
 | `cache.json` | A copy of your conversation list and recent messages, for a fast start |
 | `ui.json` | Your settings (theme, zoom, panes) |
 | `media\` | Pictures and attachments you've opened |
@@ -81,6 +89,9 @@ MessageCraft.exe  (Rust, egui)   ── commands ─▶  messagecraft-bridge.exe
 
 - **`src/`: the window.** Rust with [egui/eframe](https://github.com/emilk/egui). The palette, type
   scale and layout follow MailCraft's theme so the two apps look like a family.
+- **Sign in with Google** runs `MessageCraft.exe --google-signin`: a small Edge WebView2 window where
+  you sign in. It hands the Google session cookies that Google Messages for web uses to the helper,
+  then deletes its own browser profile. The helper keeps them, encrypted, with the pairing.
 - **`bridge/`: the connection helper.** Go, using
   [libgm](https://github.com/mautrix/gmessages/tree/main/pkg/libgm) from mautrix-gmessages for the
   Google Messages for web protocol (pairing, long-polling for updates, end-to-end encrypted
@@ -91,12 +102,13 @@ MessageCraft.exe  (Rust, egui)   ── commands ─▶  messagecraft-bridge.exe
 
 ### Bridge protocol (summary)
 
-Commands (window → helper): `connect`, `reconnect`, `pair`, `cancel_pair`, `sync {folder,count}`,
+Commands (window → helper): `connect`, `reconnect`, `pair` (QR), `pair_google {cookies}`, `cancel_pair`, `sync {folder,count}`,
 `messages {conversation_id,count,before_id?,before_ts?}`, `send {conversation_id,text,tmp_id,files?,reply_to?}`,
 `mark_read`, `typing`, `new_chat {numbers,group_name?}`, `media {media_id,key,mime}`,
 `delete_message`, `unpair`.
 
-Events (helper → window): `state`, `qr`, `qr_expired`, `paired`, `unpaired`, `phone`, `sims`,
+Events (helper → window): `state`, `qr`, `qr_expired`, `google_account`, `emoji`, `emoji_image`,
+`pair_failed`, `paired`, `unpaired`, `phone`, `sims`,
 `syncing`, `synced`, `conversations`, `conversation`, `messages`, `message`, `send_result`,
 `typing`, `media`, `deleted`, `phone_alert`, `error`.
 
@@ -146,8 +158,11 @@ the portable zip attached.
 
 ## Troubleshooting
 
-- **The QR code never connects.** Make sure the phone is online and Google Messages is up to date.
-  Pairing has to be done from Google Messages' **Device pairing** screen.
+- **Pairing doesn't finish.** Make sure you signed in with the same Google account the phone's
+  Google Messages uses, the phone is online, and Google Messages is up to date. If Google says it
+  can't find your phone, open Google Messages › Device pairing on the phone first.
+- **Google won't let you sign in** in the sign-in window ("this browser may not be secure"): try
+  again later, or pair with a QR code if your phone offers one.
 - **"Your phone isn't responding."** The phone is off, asleep without data, or has no connection.
   MessageCraft reconnects on its own when the phone answers again.
 - **A message says "Not sent".** Right-click it and choose **Try sending again**. If it keeps

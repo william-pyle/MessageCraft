@@ -1,4 +1,4 @@
-## MessageCraft 1.0.0, the first release
+## MessageCraft 1.1.0
 
 Your Android phone's text messages on Windows, in the style of MailCraft.
 
@@ -11,7 +11,8 @@ Your Android phone's text messages on Windows, in the style of MailCraft.
 
 ### What's in it
 
-- Pair with Google Messages on your Android phone by scanning a QR code. You only pair once.
+- Pair with Google Messages on your Android phone: sign in with your Google account and tap the
+  matching emoji on your phone (or scan a QR code on phones that still offer one). You only pair once.
 - Sync the Inbox, Archived, and Spam & blocked folders, with unread counts and pinned conversations.
 - Read conversations with group names, reactions, typing indicators and delivery status.
 - Send texts, pictures and files (attach, or drag and drop). Start new conversations and groups.
@@ -19,9 +20,9 @@ Your Android phone's text messages on Windows, in the style of MailCraft.
 
 ### Getting started
 
-Open MessageCraft. Then, on your phone, open Google Messages and tap your profile picture (or
-⋮) › **Device pairing** › **QR code scanner**, and scan the code. Your phone needs to stay on and
-online. See the [README](https://github.com/william-pyle/MessageCraft#readme) for more.
+Open MessageCraft, click **Sign in with Google**, and sign in with the Google account your phone's
+Google Messages uses. Then tap the emoji MessageCraft shows on your phone. Your phone needs to stay
+on and online. See the [README](https://github.com/william-pyle/MessageCraft#readme) for more.
 
 MessageCraft isn't code-signed yet, so Windows SmartScreen may warn the first time you run the
 installer. Choose **More info › Run anyway**.

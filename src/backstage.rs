@@ -109,16 +109,16 @@ impl App {
                 if widgets::secondary_button(ui, &t, "Unpair this computer…").clicked() {
                     self.confirm_unpair = true;
                 }
-            } else if widgets::primary_button(ui, &t, "Pair with your phone", true).clicked() {
+            } else if widgets::primary_button(ui, &t, "Sign in with Google to pair", true).clicked() {
                 self.backstage = None;
-                self.pair();
+                self.sign_in_with_google();
             }
         });
 
         Self::section(ui, &t, "Pairing");
         for line in [
             "MessageCraft works like Google Messages for web: your phone does the sending, and this computer shows your conversations.",
-            "To pair: on your Android phone open Google Messages, tap your profile picture or the ⋮ menu, choose Device pairing, then QR code scanner, and scan the code MessageCraft shows.",
+            "To pair: choose Sign in with Google and sign in with the Google account your phone's Google Messages uses, then tap the emoji MessageCraft shows on your phone. (Older phones whose Device pairing screen has a QR code scanner can pair with a QR code instead.)",
             "Keep your phone on and connected to the internet. If you open Google Messages for web in a browser, it takes over; use Reconnect here to switch back.",
             "Unpairing removes this computer from your phone's paired devices and deletes the copy of your conversations kept here.",
         ] {

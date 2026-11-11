@@ -1,6 +1,6 @@
 [package]
 name = "messagecraft"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2024"
 description = "MessageCraft: your phone's text messages on Windows, in the MailCraft style"
 license = "MIT OR Apache-2.0"
@@ -20,6 +20,8 @@ qrcode = { version = "0.14", default-features = false }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
 rfd = "0.17"
+wry = "0.57"
+tao = "0.37"
 
 [build-dependencies]
 winresource = "0.1"

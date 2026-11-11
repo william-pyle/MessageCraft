@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -133,7 +134,7 @@ func main() {
 		ctx:      ctx,
 		stop:     cancel,
 	}
-	emit("hello", map[string]any{"version": "1.0.0", "data_dir": *dataDir})
+	emit("hello", map[string]any{"version": "1.1.0", "data_dir": *dataDir})
 
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
@@ -180,6 +181,16 @@ func (b *bridge) handle(cmd map[string]any) {
 		go b.reconnect()
 	case "pair":
 		go b.startPairing()
+	case "pair_google":
+		cookies := map[string]string{}
+		if m, ok := cmd["cookies"].(map[string]any); ok {
+			for k, v := range m {
+				if s, ok := v.(string); ok && s != "" {
+					cookies[k] = s
+				}
+			}
+		}
+		go b.startGooglePairing(cookies)
 	case "cancel_pair":
 		b.cancelPairing()
 	case "sync":
@@ -286,7 +297,7 @@ func (b *bridge) connect() {
 	b.mu.Unlock()
 
 	auth, err := b.loadSession()
-	if err != nil || auth == nil || auth.TachyonAuthToken == nil {
+	if err != nil || auth == nil || (auth.TachyonAuthToken == nil && !auth.HasCookies()) {
 		emitState("no_session", "")
 		return
 	}
@@ -414,6 +425,127 @@ func (b *bridge) startPairing() {
 			return
 		}
 	}
+}
+
+// startGooglePairing pairs the way current Google Messages does: with the Google account the phone
+// uses. The window signs in and hands over the session cookies; Google finds the phone, which
+// shows a choice of emoji; the person taps the one shown here.
+func (b *bridge) startGooglePairing(cookies map[string]string) {
+	b.cancelPairing()
+	emitState("pairing", "")
+	if len(cookies) == 0 {
+		emit("pair_failed", map[string]any{"message": "The Google sign-in didn't finish. Try signing in again."})
+		emitState("no_session", "")
+		return
+	}
+	auth := libgm.NewAuthData()
+	auth.SetCookies(cookies)
+	cli := libgm.NewClient(auth, nil, log.With().Str("component", "libgm-gaia").Logger(), exhttp.SensibleClientSettings)
+	cli.SetEventHandler(func(evt any) {
+		log.Debug().Type("type", evt).Msg("pre-pair event")
+	})
+	ctx, cancel := context.WithCancel(b.ctx)
+	p := &pairing{client: cli, cancel: cancel, done: make(chan struct{})}
+	b.mu.Lock()
+	b.pairing = p
+	b.mu.Unlock()
+	defer func() {
+		b.mu.Lock()
+		if b.pairing == p {
+			b.pairing = nil
+		}
+		b.mu.Unlock()
+	}()
+	fail := func(msg string, err error) {
+		log.Err(err).Msg("google pairing failed")
+		cli.Disconnect()
+		cancel()
+		emit("pair_failed", map[string]any{"message": msg})
+		emitState("no_session", "")
+	}
+
+	if err := cli.FetchConfig(ctx); err != nil {
+		fail("Google didn't accept the sign-in. Try signing in again.", err)
+		return
+	}
+	email := cli.Config.GetDeviceInfo().GetEmail()
+	emit("google_account", map[string]any{"email": email})
+	startCtx, startCancel := context.WithTimeout(ctx, 90*time.Second)
+	emoji, sess, err := cli.StartGaiaPairing(startCtx, ctx)
+	startCancel()
+	if err != nil {
+		switch {
+		case errors.Is(err, libgm.ErrNoDevicesFound):
+			fail("Google couldn't find a phone using Google Messages with this account. On your phone, open Google Messages › Device pairing and check it's signed in to the same Google account.", err)
+		case errors.Is(err, libgm.ErrPhoneNotFound), errors.Is(err, libgm.ErrPhoneInactive):
+			fail("Your phone hasn't been online recently. Open Google Messages on your phone, then try again.", err)
+		case errors.Is(err, libgm.ErrPairingInitTimeout):
+			fail("Your phone didn't answer. Open Google Messages on your phone, then try again.", err)
+		case pairingLost(err) || strings.Contains(err.Error(), "401"):
+			fail("Google didn't accept the sign-in. Click Sign in with Google and sign in again.", err)
+		default:
+			fail("Pairing couldn't start: "+friendlyError(err), err)
+		}
+		return
+	}
+	emit("emoji", map[string]any{"emoji": emoji, "image_url": libgm.GetEmojiSVG(emoji)})
+	go b.fetchEmojiImage(emoji)
+
+	phoneID, err := cli.FinishGaiaPairing(ctx, sess)
+	if err != nil {
+		switch {
+		case errors.Is(err, libgm.ErrIncorrectEmoji):
+			fail("A different emoji was tapped on your phone. Try again and tap the one MessageCraft shows.", err)
+		case errors.Is(err, libgm.ErrPairingCancelled):
+			fail("Pairing was cancelled on your phone.", err)
+		case errors.Is(err, libgm.ErrPairingTimeout):
+			fail("Your phone wasn't confirmed in time. Try again.", err)
+		case errors.Is(err, context.Canceled):
+			cli.Disconnect()
+			emitState("no_session", "")
+		default:
+			fail("Pairing didn't finish: "+friendlyError(err), err)
+		}
+		return
+	}
+	log.Info().Str("phone", phoneID).Msg("paired with google account")
+	b.saveSession(cli.AuthData)
+	label := email
+	if label == "" {
+		label = phoneID
+	}
+	emit("paired", map[string]any{"phone": label})
+	cli.Disconnect()
+	cancel()
+	b.connect()
+}
+
+// fetchEmojiImage saves the colour picture of the pairing emoji (Google's Noto emoji) for the window.
+func (b *bridge) fetchEmojiImage(emoji string) {
+	url := strings.Replace(libgm.GetEmojiSVG(emoji), "/emoji.svg", "/512.png", 1)
+	ctx, cancel := context.WithTimeout(b.ctx, 20*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	if err != nil {
+		return
+	}
+	path := filepath.Join(b.cacheDir, "pair-emoji.png")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		return
+	}
+	emit("emoji_image", map[string]any{"emoji": emoji, "path": path})
 }
 
 func (b *bridge) cancelPairing() {

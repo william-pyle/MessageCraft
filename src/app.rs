@@ -83,6 +83,20 @@ pub struct NewChat {
     pub focus: bool,
 }
 
+/// Where pairing is up to.
+pub enum PairStep {
+    /// Choose: sign in with Google (current phones) or a QR code.
+    Choose,
+    /// The Google sign-in window is open.
+    SigningIn,
+    /// Signed in; Google is finding the phone.
+    Contacting,
+    /// The phone shows a choice of emoji: tap this one.
+    Emoji { emoji: String, image: Option<TextureHandle> },
+    /// The QR code way.
+    Qr,
+}
+
 pub struct Notice {
     pub text: String,
     pub error: bool,
@@ -95,6 +109,10 @@ pub struct App {
     pub qr: Option<(String, Vec<bool>, usize, Instant)>,
     pub qr_expired: bool,
     pub auto_pair_started: bool,
+    pub pair_step: PairStep,
+    pub pair_error: Option<String>,
+    pub google_email: Option<String>,
+    signin_child: Option<std::process::Child>,
     pub phone: Option<String>,
     pub convs: HashMap<String, Conversation>,
     pub folder: Folder,
@@ -147,6 +165,10 @@ impl App {
             qr: None,
             qr_expired: false,
             auto_pair_started: false,
+            pair_step: PairStep::Choose,
+            pair_error: None,
+            google_email: None,
+            signin_child: None,
             phone: None,
             convs: HashMap::new(),
             folder: Folder::Inbox,
@@ -416,11 +438,53 @@ impl App {
         self.notify("Downloading the attachment from your phone…", false);
     }
 
+    /// Pair with a QR code (phones whose Device pairing screen still has a QR code scanner).
     pub fn pair(&mut self) {
         self.qr = None;
         self.qr_expired = false;
+        self.pair_error = None;
+        self.pair_step = PairStep::Qr;
         self.conn = Conn::Pairing;
         self.bridge.send(json!({"cmd": "pair"}));
+    }
+
+    /// Pair with the Google account the phone uses: sign in, then confirm with an emoji.
+    pub fn sign_in_with_google(&mut self) {
+        self.cancel_pairing();
+        self.pair_error = None;
+        let exe = std::env::current_exe().unwrap_or_default();
+        let mut cmd = std::process::Command::new(exe);
+        cmd.arg("--google-signin").stdin(std::process::Stdio::null()).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::null());
+        match cmd.spawn() {
+            Ok(mut child) => {
+                let tx = self.bridge.sender();
+                if let Some(out) = child.stdout.take() {
+                    std::thread::spawn(move || {
+                        use std::io::BufRead;
+                        let mut line = String::new();
+                        let _ = std::io::BufReader::new(out).read_line(&mut line);
+                        let v: Value = serde_json::from_str(line.trim()).unwrap_or_else(|_| json!({"cancelled": true}));
+                        let _ = tx.send(json!({"ev": "signin_result", "result": v}));
+                    });
+                }
+                self.signin_child = Some(child);
+                self.pair_step = PairStep::SigningIn;
+            }
+            Err(e) => self.pair_error = Some(format!("The sign-in window couldn't open: {e}")),
+        }
+    }
+
+    /// Stop whatever pairing is under way and go back to the choice.
+    pub fn cancel_pairing(&mut self) {
+        if let Some(mut c) = self.signin_child.take() {
+            let _ = c.kill();
+            let _ = c.wait();
+        }
+        if !matches!(self.pair_step, PairStep::Choose) {
+            self.bridge.send(json!({"cmd": "cancel_pair"}));
+        }
+        self.qr = None;
+        self.pair_step = PairStep::Choose;
     }
 
     pub fn unpair(&mut self) {
@@ -494,12 +558,9 @@ impl App {
                     "error" => Conn::Error(detail),
                     _ => return,
                 };
-                if new == Conn::NoSession && !self.auto_pair_started && self.qr.is_none() {
-                    // Nothing paired yet: show a code to scan straight away.
-                    self.auto_pair_started = true;
-                    self.conn = Conn::NoSession;
-                    self.pair();
-                    return;
+                if new == Conn::NoSession && matches!(self.pair_step, PairStep::Qr) && self.qr.is_none() && !self.qr_expired {
+                    // The QR attempt ended without a code (an error was shown): back to the choice.
+                    self.pair_step = PairStep::Choose;
                 }
                 if new == Conn::Connected && self.conn != Conn::Connected {
                     self.qr = None;
@@ -516,12 +577,53 @@ impl App {
                     self.conn = Conn::Pairing;
                 }
             }
+            "signin_result" => {
+                self.signin_child = None;
+                let r = ev.get("result").cloned().unwrap_or(Value::Null);
+                if let Some(cookies) = r.get("cookies").filter(|c| c.as_object().is_some_and(|o| !o.is_empty())) {
+                    self.pair_step = PairStep::Contacting;
+                    self.conn = Conn::Pairing;
+                    self.bridge.send(json!({"cmd": "pair_google", "cookies": cookies}));
+                } else if let Some(err) = r.get("error").and_then(|e| e.as_str()) {
+                    self.pair_step = PairStep::Choose;
+                    self.pair_error = Some(err.to_string());
+                } else if matches!(self.pair_step, PairStep::SigningIn) {
+                    self.pair_step = PairStep::Choose;
+                }
+            }
+            "google_account" => {
+                let e = s("email");
+                if !e.is_empty() {
+                    self.google_email = Some(e);
+                }
+            }
+            "emoji" => {
+                self.pair_step = PairStep::Emoji { emoji: s("emoji"), image: None };
+            }
+            "emoji_image" => {
+                let path = s("path");
+                if let (PairStep::Emoji { emoji, image }, Ok(bytes)) = (&mut self.pair_step, std::fs::read(&path)) {
+                    if *emoji == s("emoji") {
+                        if let Ok(img) = image::load_from_memory(&bytes) {
+                            let rgba = img.to_rgba8();
+                            let ci = ColorImage::from_rgba_unmultiplied([rgba.width() as usize, rgba.height() as usize], rgba.as_raw());
+                            *image = Some(ctx.load_texture("pair-emoji", ci, TextureOptions::LINEAR));
+                        }
+                    }
+                }
+            }
+            "pair_failed" => {
+                self.pair_step = PairStep::Choose;
+                self.pair_error = Some(s("message"));
+            }
             "qr_expired" => {
                 self.qr = None;
                 self.qr_expired = true;
             }
             "paired" => {
                 self.qr = None;
+                self.pair_step = PairStep::Choose;
+                self.pair_error = None;
                 self.phone = Some(s("phone"));
                 self.conn = Conn::Connecting;
                 self.notify("Paired with your phone. Syncing your conversations…", false);
@@ -941,6 +1043,9 @@ impl eframe::App for App {
     }
 
     fn on_exit(&mut self) {
+        if let Some(mut c) = self.signin_child.take() {
+            let _ = c.kill();
+        }
         self.save_cache();
         self.save_settings();
         self.bridge.stop();
