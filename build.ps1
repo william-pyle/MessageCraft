@@ -34,4 +34,12 @@ $zip = Join-Path $dist 'MessageCraft-windows.zip'
 if (Test-Path $zip) { Remove-Item $zip -Force }
 Compress-Archive -Path (Join-Path $dist 'MessageCraft.exe'), (Join-Path $dist 'messagecraft-bridge.exe'), (Join-Path $dist 'NOTICE.md') -DestinationPath $zip
 Copy-Item (Join-Path $root 'web\*') $dist -Recurse -Force
+
+# The installer (MSI), when WiX is available on PATH or in .tools\wix.
+if ((Get-Command wix -ErrorAction SilentlyContinue) -or (Test-Path (Join-Path $root '.tools\wix\wix.exe'))) {
+    Write-Host 'Building the installer...'
+    & (Join-Path $root 'packaging\windows\package.ps1')
+} else {
+    Write-Warning 'WiX is not installed, so no installer was built (see packaging\windows\package.ps1).'
+}
 Write-Host "Done: $dist\MessageCraft.exe and $dist\index.html"

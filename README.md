@@ -33,9 +33,13 @@ MessageCraft is an independent project. It is not made by, endorsed by or affili
 
 ## Getting started
 
-1. Download `MessageCraft-windows.zip` from the [latest release](../../releases/latest) and unzip it
-   anywhere. Keep `MessageCraft.exe` and `messagecraft-bridge.exe` in the same folder.
-2. Open **MessageCraft.exe**. It shows a QR code.
+1. Download **`MessageCraft-windows-x64.msi`** from the [latest release](../../releases/latest) and
+   run it. Like MailCraft's installer, it installs into Program Files, adds a Start Menu shortcut,
+   and offers to launch MessageCraft when it finishes. To remove MessageCraft later, use Windows
+   **Settings › Apps**.
+   *Portable instead:* download `MessageCraft-windows.zip`, unzip it anywhere, and keep
+   `MessageCraft.exe` and `messagecraft-bridge.exe` in the same folder.
+2. Open **MessageCraft** from the Start menu. It shows a QR code.
 3. On your Android phone, open **Google Messages**, tap your profile picture (or the **⋮** menu),
    choose **Device pairing**, then **QR code scanner**, and scan the code.
 
@@ -82,6 +86,8 @@ MessageCraft.exe  (Rust, egui)   ── commands ─▶  messagecraft-bridge.exe
   Google Messages for web protocol (pairing, long-polling for updates, end-to-end encrypted
   requests to the phone, media upload and download).
 - **`web/`: the download page** (static HTML), published alongside each build.
+- **`packaging/`: the Windows installer** (WiX: `windows/messagecraft.wxs` and `windows/package.ps1`)
+  and the icon generator.
 
 ### Bridge protocol (summary)
 
@@ -102,6 +108,13 @@ Requirements (Windows 10/11, x64):
 - [Go](https://go.dev/dl/) 1.27 or later (or unzip Go into `.tools\go`, which the build script uses
   when Go isn't on PATH)
 - Node.js is optional: it only provides the `npm run build` shortcut
+- For the installer: [WiX v5](https://wixtoolset.org)
+  (`dotnet tool install --global wix --version 5.0.2`). Without WiX, the build skips the MSI and
+  still makes everything else.
+
+`MessageCraft.exe` links the C runtime statically, so neither the installer nor the zip needs the
+Visual C++ redistributable. The icon comes from `packaging/make_icon.py`, which writes
+`assets/messagecraft.ico`.
 
 ```powershell
 npm run build
@@ -113,7 +126,9 @@ The output goes to `dist\`:
 
 - `MessageCraft.exe`
 - `messagecraft-bridge.exe`
-- `MessageCraft-windows.zip` (both programs, plus the notices)
+- `MessageCraft-windows-x64.msi` (the installer, built when [WiX v5](https://wixtoolset.org) is
+  installed; see `packaging/windows/package.ps1`)
+- `MessageCraft-windows.zip` (portable: both programs plus the notices)
 - `index.html` and `help.html` (the download page)
 
 ### Continuous builds and releases
@@ -126,7 +141,8 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-The workflow then creates a GitHub Release with `MessageCraft-windows.zip` attached.
+The workflow then creates a GitHub Release with the installer (`MessageCraft-windows-x64.msi`) and
+the portable zip attached.
 
 ## Troubleshooting
 

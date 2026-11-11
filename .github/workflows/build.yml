@@ -25,6 +25,13 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      - name: Install WiX (for the installer)
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          wix extension add -g WixToolset.UI.wixext/5.0.2
+          wix extension add -g WixToolset.Util.wixext/5.0.2
+
       - name: Build MessageCraft
         shell: pwsh
         run: ./build.ps1
@@ -38,5 +45,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/MessageCraft-windows.zip
+          files: |
+            dist/MessageCraft-windows-x64.msi
+            dist/MessageCraft-windows.zip
           generate_release_notes: true

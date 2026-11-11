@@ -5,6 +5,7 @@ edition = "2024"
 description = "MessageCraft: your phone's text messages on Windows, in the MailCraft style"
 license = "MIT OR Apache-2.0"
 publish = false
+build = "build.rs"
 
 [[bin]]
 name = "MessageCraft"
@@ -19,6 +20,9 @@ qrcode = { version = "0.14", default-features = false }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
 rfd = "0.17"
+
+[build-dependencies]
+winresource = "0.1"
 
 [profile.release]
 opt-level = 3

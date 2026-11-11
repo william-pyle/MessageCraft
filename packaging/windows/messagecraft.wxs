@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MessageCraft MSI (WiX Toolset v5, with its UI and Util extensions), built by package.ps1:
+
+    wix build messagecraft.wxs -arch x64 -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext
+      -d Version=1.2.3 -d BinDir=... -d IconPath=... -d LicenseRtf=... -o out.msi
+
+  Like MailCraft's installer: per-machine install into Program Files, a Start Menu shortcut, and
+  the standard WiX dialogs (welcome + licence, progress, finish with "Launch MessageCraft").
+
+  The UpgradeCode and component GUIDs below are MessageCraft's own. Never share them with another
+  app: Windows Installer treats every package with one UpgradeCode as the same product.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package
+      Name="MessageCraft"
+      Manufacturer="MessageCraft contributors"
+      Version="$(var.Version)"
+      UpgradeCode="43FAC59B-7634-4B81-9389-22FD44451B14"
+      Scope="perMachine"
+      Compressed="yes"
+      Language="1033">
+    <SummaryInformation Description="MessageCraft: your phone's text messages on Windows" Manufacturer="MessageCraft contributors" />
+    <!-- A newer (or the same) version replaces the installed one; going back to an older one is allowed too. -->
+    <MajorUpgrade AllowDowngrades="yes" />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="MessageCraftIcon.ico" SourceFile="$(var.IconPath)" />
+    <Property Id="ARPPRODUCTICON" Value="MessageCraftIcon.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/william-pyle/MessageCraft" />
+    <Property Id="ARPURLUPDATEINFO" Value="https://github.com/william-pyle/MessageCraft/releases" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/william-pyle/MessageCraft/issues" />
+
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch MessageCraft" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <Property Id="WixShellExecTarget" Value="[#MessageCraftExe]" />
+    <CustomAction Id="LaunchMessageCraft" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" DllEntry="WixShellExec"
+        Impersonate="yes" Return="ignore" />
+    <UI>
+      <ui:WixUI Id="WixUI_Minimal" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchMessageCraft"
+          Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed" />
+    </UI>
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="MessageCraft">
+        <Component Id="MessageCraftExe" Guid="B6C340B8-7E1F-40C1-B698-FA928B29E1FE">
+          <File Id="MessageCraftExe" Source="$(var.BinDir)\MessageCraft.exe" KeyPath="yes" />
+          <File Id="BridgeExe" Source="$(var.BinDir)\messagecraft-bridge.exe" />
+          <File Id="NoticeMd" Source="$(var.BinDir)\NOTICE.md" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="StartMenuShortcut" Guid="8B268010-ECBA-44FE-92A3-8443EC00958E">
+        <Shortcut Id="MessageCraftShortcut"
+            Name="MessageCraft"
+            Description="Your phone's text messages on Windows"
+            Target="[#MessageCraftExe]"
+            WorkingDirectory="INSTALLFOLDER"
+            Icon="MessageCraftIcon.ico" />
+        <RegistryValue Root="HKLM" Key="Software\MessageCraft" Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="MessageCraft" Level="1">
+      <ComponentRef Id="MessageCraftExe" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+  </Package>
+</Wix>
