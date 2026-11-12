@@ -50,9 +50,26 @@ impl App {
         if let Some(last) = self.threads.get(&id).and_then(|th| th.messages.last()) {
             p.text(pos2(header.max.x - 18.0, header.min.y + 50.0), Align2::RIGHT_CENTER, timefmt::full(last.ts), theme::regular(11.5), t.text_dim);
         }
-        let actions = Rect::from_min_size(pos2(header.max.x - 100.0, header.min.y + 8.0), vec2(84.0, 26.0));
+        let actions = Rect::from_min_size(pos2(header.max.x - 130.0, header.min.y + 8.0), vec2(114.0, 26.0));
         let mut a = ui.new_child(egui::UiBuilder::new().max_rect(actions).layout(egui::Layout::right_to_left(egui::Align::Center)));
         a.spacing_mut().item_spacing.x = 2.0;
+        // The person in a one-to-one conversation: open their MailCraft contact, or add one.
+        if !conv.group && self.people.state == crate::people::ContactsState::Ready {
+            if let Some(other) = conv.others().next().cloned() {
+                let existing = self.people.contact_for(&other.number).map(|c| c.id);
+                let tip = if existing.is_some() { "Open in MailCraft contacts" } else { "Add to MailCraft contacts" };
+                if icon_button(&mut a, &t, Icon::Person, 26.0, tip).clicked() {
+                    match existing {
+                        Some(cid) => {
+                            self.people.open = true;
+                            self.people.selected = Some(cid);
+                            self.people.editing = None;
+                        }
+                        None => self.add_contact_from(&other.name, &other.number),
+                    }
+                }
+            }
+        }
         if icon_button(&mut a, &t, Icon::Sync, 26.0, "Reload this conversation").clicked() {
             self.load_thread(&id, true);
         }

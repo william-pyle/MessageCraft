@@ -108,6 +108,25 @@ pub fn fill(app: &mut App) {
         app.threads.insert(c.id.clone(), thread);
         app.convs.insert(c.id.clone(), c);
     }
+    // Sample MailCraft contacts (made up).
+    use crate::mailcraft::{Contact as McContact, Labeled};
+    let ph = |v: &str| vec![Labeled { label: "mobile".into(), value: v.into() }];
+    let em = |v: &str| vec![Labeled { label: "work".into(), value: v.into() }];
+    app.people.contacts = vec![
+        McContact { id: 1, first: "Avery".into(), last: "Lin".into(), phones: ph("+1 555-010-2231"), emails: em("avery.lin@example.com"), favorite: true, ..Default::default() },
+        McContact { id: 2, first: "Casey".into(), last: "Morgan".into(), company: "Harbor Movers".into(), phones: ph("555-010-6643"), ..Default::default() },
+        McContact { id: 3, first: "Jordan".into(), last: "Price".into(), title: "Designer".into(), company: "Northwind Studio".into(), phones: ph("(555) 010-7781"), emails: em("jordan@example.com"), notes: "Prefers texts after 6 pm.".into(), ..Default::default() },
+        McContact { id: 4, first: "Priya".into(), last: "Shah".into(), phones: ph("555-010-1188"), emails: em("priya.shah@example.com"), ..Default::default() },
+        McContact { id: 5, first: "Sam".into(), last: "Ortiz".into(), phones: ph("555-010-4410"), ..Default::default() },
+        McContact { id: 6, first: "Taylor".into(), last: "Brooks".into(), phones: ph("555-010-5520"), emails: em("taylor.b@example.com"), favorite: true, ..Default::default() },
+    ];
+    app.people.contacts.sort_by_key(|c| c.label().to_lowercase());
+    app.people.index();
+    app.people.state = crate::people::ContactsState::Ready;
+    if std::env::args().any(|a| a == "--people") {
+        app.people.open = true;
+        app.people.selected = Some(3);
+    }
     app.phone = Some("Pixel (demo)".into());
     app.conn = Conn::Connected;
     app.last_sync = Some(now);

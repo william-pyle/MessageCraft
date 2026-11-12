@@ -33,7 +33,18 @@ impl App {
                 .show_separator_line(false)
                 .frame(Frame::new().fill(t.canvas).inner_margin(Margin { left: 4, right: 10, top: 5, bottom: 7 }))
                 .show(ui, |ui| self.ribbon(ui));
-            if self.conn.paired_view() {
+            if self.people.open {
+                Panel::left("people_list")
+                    .default_size(380.0)
+                    .size_range(280.0..=600.0)
+                    .resizable(true)
+                    .show_separator_line(false)
+                    .frame(Frame::new().fill(t.canvas).inner_margin(Margin { left: 4, right: 6, top: 0, bottom: 8 }))
+                    .show(ui, |ui| self.people_list(ui));
+                egui::CentralPanel::no_frame()
+                    .frame(Frame::new().fill(t.canvas).inner_margin(Margin { left: 0, right: 10, top: 0, bottom: 8 }))
+                    .show(ui, |ui| self.people_card(ui));
+            } else if self.conn.paired_view() {
                 if self.settings.folder_pane {
                     Panel::left("folders")
                         .default_size(240.0)
@@ -62,6 +73,7 @@ impl App {
 
         let ctx = ui.ctx().clone();
         self.dialogs(&ctx);
+        self.people_dialogs(&ctx);
         self.notice_overlay(&ctx);
     }
 
@@ -198,6 +210,7 @@ impl App {
         let connected = matches!(self.conn, Conn::Connected);
         let has_sel = self.selected.is_some();
         match self.ribbon {
+            RibbonTab::Home if self.people.open => self.people_ribbon(ui),
             RibbonTab::Home => {
                 if ribbon_button(ui, &t, Icon::NewChat, "New Conversation", false, paired, false).clicked() {
                     self.new_chat = Some(NewChat { focus: true, ..Default::default() });
@@ -295,16 +308,16 @@ impl App {
     fn rail(&mut self, ui: &mut Ui) {
         let t = self.t;
         let rect = ui.max_rect();
-        let items = [(Icon::Chat, "Messages", true), (Icon::People, "People (from your conversations)", false), (Icon::Gear, "Options", false)];
+        let items = [(Icon::Chat, "Messages", true), (Icon::People, "People (MailCraft contacts)", false), (Icon::Gear, "Options", false)];
         let mut y = rect.min.y + 4.0 + TAB_H;
         for (i, (icon, tip, _)) in items.iter().enumerate() {
             let r = Rect::from_min_size(pos2(rect.min.x, y), vec2(RAIL_W, 48.0));
             let resp = ui.interact(r, egui::Id::unique(("rail", i)), Sense::click()).on_hover_text(*tip);
             resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, *tip));
             let active = match i {
-                0 => self.backstage.is_none(),
-                2 => self.backstage == Some(Backstage::Options),
-                _ => false,
+                0 => self.backstage.is_none() && !self.people.open,
+                1 => self.backstage.is_none() && self.people.open,
+                _ => self.backstage == Some(Backstage::Options),
             };
             if resp.hovered() {
                 ui.painter().rect_filled(r.shrink(6.0), 6.0, t.hover);
@@ -316,10 +329,15 @@ impl App {
             icons::paint(ui.painter(), ir, *icon, if active { t.accent } else { t.icon }, if active { t.accent } else { t.icon });
             if resp.clicked() {
                 match i {
-                    0 => self.backstage = None,
+                    0 => {
+                        self.backstage = None;
+                        self.people.open = false;
+                    }
                     1 => {
                         self.backstage = None;
-                        self.focus_search = true;
+                        self.people.open = true;
+                        self.ribbon = RibbonTab::Home;
+                        self.contacts_load();
                     }
                     _ => self.backstage = Some(Backstage::Options),
                 }

@@ -145,6 +145,7 @@ pub struct App {
     pub t: Tokens,
     pub sent_count: u64,
     pub demo: bool,
+    pub people: crate::people::People,
 }
 
 const CACHE_FILE: &str = "cache.json";
@@ -201,6 +202,7 @@ impl App {
             t: Tokens::dark(),
             sent_count: 0,
             demo: false,
+            people: crate::people::People::default(),
             bridge: Bridge::new(),
         };
         let args: Vec<String> = std::env::args().collect();
@@ -219,6 +221,9 @@ impl App {
         }
         app.load_cache();
         app.apply_settings(&cc.egui_ctx);
+        // MailCraft's contacts, when MailCraft shares them.
+        app.people.link = Some(crate::mailcraft::Link::start(cc.egui_ctx.clone()));
+        app.contacts_load();
         bridge.start(&cc.egui_ctx);
         bridge.send(json!({"cmd": "connect"}));
         app.bridge = bridge;
@@ -667,6 +672,7 @@ impl App {
                         }
                     }
                     self.cache_dirty = true;
+                    self.apply_contact_names();
                 }
             }
             "conversation" => {
@@ -676,7 +682,9 @@ impl App {
                         let opened = ev.get("opened").and_then(|v| v.as_bool()).unwrap_or(false);
                         self.convs.insert(id.clone(), c);
                         self.cache_dirty = true;
+                        self.apply_contact_names();
                         if opened {
+                            self.people.open = false;
                             self.new_chat = None;
                             self.folder = Folder::Inbox;
                             self.selected = None;
@@ -1024,6 +1032,7 @@ impl eframe::App for App {
         let ctx = ui.ctx().clone();
         self.t = Tokens::for_dark(ui.visuals().dark_mode);
         self.handle_events(&ctx);
+        self.contacts_events();
         self.keyboard(&ctx);
         self.dropped_files(&ctx);
         self.typing.retain(|_, until| *until > Instant::now());

@@ -134,7 +134,7 @@ func main() {
 		ctx:      ctx,
 		stop:     cancel,
 	}
-	emit("hello", map[string]any{"version": "1.1.0", "data_dir": *dataDir})
+	emit("hello", map[string]any{"version": "1.2.0", "data_dir": *dataDir})
 
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
