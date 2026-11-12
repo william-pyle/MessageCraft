@@ -26,3 +26,9 @@ on and online. See the [README](https://github.com/william-pyle/MessageCraft#rea
 
 MessageCraft isn't code-signed yet, so Windows SmartScreen may warn the first time you run the
 installer. Choose **More info › Run anyway**.
+
+### Known issues
+
+This is an early build. Known problems and fixes in progress are tracked in
+[Issues](https://github.com/william-pyle/MessageCraft/issues); please report anything else you
+find there.
