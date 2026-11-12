@@ -26,6 +26,9 @@ Open MessageCraft, click **Sign in with Google**, and sign in with the Google ac
 Google Messages uses. Then tap the emoji MessageCraft shows on your phone. Your phone needs to stay
 on and online. See the [README](https://github.com/william-pyle/MessageCraft#readme) for more.
 
+To use your MailCraft contacts, click **People** on the left. If MailCraft is open, close it first, then
+click **Open MailCraft with contact sharing**.
+
 MessageCraft isn't code-signed yet, so Windows SmartScreen may warn the first time you run the
 installer. Choose **More info › Run anyway**.
 
