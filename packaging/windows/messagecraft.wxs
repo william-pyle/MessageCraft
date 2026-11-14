@@ -49,6 +49,7 @@
           <File Id="MessageCraftExe" Source="$(var.BinDir)\MessageCraft.exe" KeyPath="yes" />
           <File Id="BridgeExe" Source="$(var.BinDir)\messagecraft-bridge.exe" />
           <File Id="NoticeMd" Source="$(var.BinDir)\NOTICE.md" />
+          <File Id="UpdateScript" Source="$(var.BinDir)\update.ps1" />
         </Component>
       </Directory>
     </StandardDirectory>

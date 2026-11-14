@@ -16,6 +16,7 @@ mod reading;
 mod signin;
 mod theme;
 mod timefmt;
+mod update;
 mod widgets;
 
 /// The window icon: MailCraft's blue tile with a white speech bubble, drawn here.

@@ -28,11 +28,12 @@ cargo build --release
 if ($LASTEXITCODE -ne 0) { throw 'MessageCraft failed to build.' }
 Copy-Item (Join-Path $root 'target\release\MessageCraft.exe') $dist -Force
 Copy-Item (Join-Path $root 'NOTICE.md') $dist -Force
+Copy-Item (Join-Path $root 'update.ps1') $dist -Force
 
 Write-Host 'Packing the download and its page...'
 $zip = Join-Path $dist 'MessageCraft-windows.zip'
 if (Test-Path $zip) { Remove-Item $zip -Force }
-Compress-Archive -Path (Join-Path $dist 'MessageCraft.exe'), (Join-Path $dist 'messagecraft-bridge.exe'), (Join-Path $dist 'NOTICE.md') -DestinationPath $zip
+Compress-Archive -Path (Join-Path $dist 'MessageCraft.exe'), (Join-Path $dist 'messagecraft-bridge.exe'), (Join-Path $dist 'NOTICE.md'), (Join-Path $dist 'update.ps1') -DestinationPath $zip
 Copy-Item (Join-Path $root 'web\*') $dist -Recurse -Force
 
 # The installer (MSI), when WiX is available on PATH or in .tools\wix.

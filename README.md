@@ -32,6 +32,7 @@ MessageCraft is an independent project. It is not made by, endorsed by or affili
   their names on conversations (see [ContactCraft contacts](#contactcraft-contacts)).
 - **Works offline for reading:** a copy of recent conversations is kept locally, so the window opens
   instantly and shows what it last synced.
+- **Updates:** checks GitHub Releases when the app opens and offers to download and install a newer Windows release. You can also check in File > About. Your local data stays in place.
 - Keyboard: **Ctrl+N** new conversation, **F5** sync, **Ctrl+F** / **Ctrl+E** search,
   **↑ / ↓** move between conversations, **Esc** close dialogs.
 - Accessible: every control has a name for screen readers (UI Automation).
@@ -144,6 +145,7 @@ The output goes to `dist\`:
 
 - `MessageCraft.exe`
 - `messagecraft-bridge.exe`
+- `update.ps1` (release check and installer download)
 - `MessageCraft-windows-x64.msi` (the installer, built when [WiX v5](https://wixtoolset.org) is
   installed; see `packaging/windows/package.ps1`)
 - `MessageCraft-windows.zip` (portable: both programs plus the notices)

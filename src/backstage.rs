@@ -184,6 +184,17 @@ impl App {
                 ui.label(egui::RichText::new(format!("Version {}", env!("CARGO_PKG_VERSION"))).font(theme::regular(13.0)).color(t.text_dim));
             });
         });
+        ui.add_space(8.0);
+        if let Some(release) = &self.update_release {
+            ui.label(egui::RichText::new(format!("Version {} is available", release.version)).font(theme::semibold(13.0)).color(t.accent));
+            if widgets::primary_button(ui, &t, "Install update", !self.update_downloading).clicked() {
+                self.update_prompt = true;
+            }
+        } else if widgets::secondary_button(ui, &t, "Check for updates").clicked() {
+            self.update_check_manual = true;
+            self.update_rx = Some(crate::update::check());
+            self.notify("Checking for updates...", false);
+        }
         Self::section(ui, &t, "About");
         ui.add(egui::Label::new(egui::RichText::new("Your phone's text messages (SMS, MMS and RCS chats) on Windows, in the style of MailCraft. MessageCraft is not made by or affiliated with Google.").font(theme::regular(13.0)).color(t.text_dim)).wrap());
         Self::section(ui, &t, "Built with");
@@ -200,6 +211,30 @@ impl App {
 
     pub fn dialogs(&mut self, ctx: &egui::Context) {
         let t = self.t;
+        if self.update_prompt {
+            let mut later = false;
+            let mut install = false;
+            let release = self.update_release.as_ref().map(|r| r.version.clone()).unwrap_or_default();
+            egui::Modal::new(egui::Id::unique("app_update")).frame(dialog_frame(&t)).show(ctx, |ui| {
+                ui.set_width(400.0);
+                ui.label(egui::RichText::new("MessageCraft update available").font(theme::semibold(17.0)).color(t.text));
+                ui.add(egui::Label::new(egui::RichText::new(format!("Version {release} is ready. Install it now? Your pairing, conversations and settings will be kept.")).font(theme::regular(13.0)).color(t.text_dim)).wrap());
+                ui.add_space(10.0);
+                ui.horizontal(|ui| {
+                    if widgets::primary_button(ui, &t, "Install update", !self.update_downloading).clicked() { install = true; }
+                    if widgets::secondary_button(ui, &t, "Later").clicked() { later = true; }
+                    if widgets::secondary_button(ui, &t, "Release page").clicked() { crate::update::open_releases(); }
+                });
+                if self.update_downloading { ui.label("Downloading installer..."); }
+            });
+            if later { self.update_prompt = false; }
+            if install {
+                if let Some(release) = self.update_release.clone() {
+                    self.update_downloading = true;
+                    self.update_rx = Some(crate::update::download(release));
+                }
+            }
+        }
         if self.new_chat.is_some() {
             let mut close = false;
             let mut start = false;

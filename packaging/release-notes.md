@@ -1,4 +1,4 @@
-## MessageCraft 1.3.0
+## MessageCraft 1.3.1
 
 Your Android phone's text messages on Windows, in the style of MailCraft.
 
@@ -16,9 +16,11 @@ Your Android phone's text messages on Windows, in the style of MailCraft.
 - Sync the Inbox, Archived, and Spam & blocked folders, with unread counts and pinned conversations.
 - Read conversations with group names, reactions, typing indicators and delivery status.
 - Send texts, pictures and files (attach, or drag and drop). Start new conversations and groups.
-- **New:** ContactCraft contacts in MessageCraft: see and search contacts, start a text, and open
+- ContactCraft contacts in MessageCraft: see and search contacts, start a text, and open
   ContactCraft to add, edit, or change a contact's theme. Names, photos, and chat themes appear
   in conversations.
+- **New:** MessageCraft checks for new releases when it opens. You can also check from File > About,
+  then download and run the Windows installer from the app.
 - MailCraft's look: ribbon, folder pane, conversation list and reading pane, in light or dark.
 
 ### Getting started

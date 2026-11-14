@@ -146,6 +146,11 @@ pub struct App {
     pub sent_count: u64,
     pub demo: bool,
     pub people: crate::people::People,
+    pub update_release: Option<crate::update::Release>,
+    pub(crate) update_rx: Option<Receiver<crate::update::Event>>,
+    pub update_prompt: bool,
+    pub update_downloading: bool,
+    pub update_check_manual: bool,
 }
 
 const CACHE_FILE: &str = "cache.json";
@@ -203,6 +208,11 @@ impl App {
             sent_count: 0,
             demo: false,
             people: crate::people::People::default(),
+            update_release: None,
+            update_rx: None,
+            update_prompt: false,
+            update_downloading: false,
+            update_check_manual: false,
             bridge: Bridge::new(),
         };
         let args: Vec<String> = std::env::args().collect();
@@ -227,6 +237,7 @@ impl App {
         bridge.start(&cc.egui_ctx);
         bridge.send(json!({"cmd": "connect"}));
         app.bridge = bridge;
+        app.update_rx = Some(crate::update::check());
         app
     }
 
@@ -246,6 +257,43 @@ impl App {
         if let Ok(b) = serde_json::to_vec_pretty(&self.settings) {
             let _ = std::fs::write(self.bridge.data_dir.join(SETTINGS_FILE), b);
         }
+    }
+
+    fn handle_update(&mut self, ctx: &egui::Context) {
+        use std::sync::mpsc::TryRecvError;
+        let Some(rx) = &self.update_rx else { return };
+        let event = match rx.try_recv() {
+            Ok(event) => event,
+            Err(TryRecvError::Empty) => return,
+            Err(TryRecvError::Disconnected) => {
+                self.update_rx = None;
+                return;
+            }
+        };
+        self.update_rx = None;
+        match event {
+            crate::update::Event::Available(release) => {
+                self.update_release = Some(release);
+                self.update_prompt = true;
+            }
+            crate::update::Event::Current => {
+                if self.update_check_manual { self.notify("MessageCraft is up to date.", false); }
+            }
+            crate::update::Event::Downloaded(path) => {
+                self.update_downloading = false;
+                match crate::update::install(&path) {
+                    Ok(()) => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                    Err(error) => self.notify(error, true),
+                }
+            }
+            crate::update::Event::Failed(error) => {
+                self.update_downloading = false;
+                if self.update_check_manual || self.update_release.is_some() {
+                    self.notify(error, true);
+                }
+            }
+        }
+        self.update_check_manual = false;
     }
 
     fn load_cache(&mut self) {
@@ -1046,6 +1094,7 @@ impl eframe::App for App {
         let ctx = ui.ctx().clone();
         self.t = Tokens::for_dark(ui.visuals().dark_mode);
         self.handle_events(&ctx);
+        self.handle_update(&ctx);
         self.contacts_events(&ctx);
         self.keyboard(&ctx);
         self.dropped_files(&ctx);
