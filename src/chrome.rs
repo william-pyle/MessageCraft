@@ -112,7 +112,7 @@ impl App {
         let edit = egui::TextEdit::singleline(&mut self.search)
             .id(egui::Id::unique("search_box"))
             .frame(Frame::NONE)
-            .hint_text(egui::RichText::new("Search conversations and people").color(t.text_dim))
+            .hint_text(egui::RichText::new(if self.people.open { "Search contacts" } else { "Search conversations" }).color(t.text_dim))
             .font(theme::regular(13.0))
             .text_color(t.text)
             .desired_width(edit_rect.width());
@@ -122,7 +122,7 @@ impl App {
             self.focus_search = false;
         }
         if self.search.is_empty() {
-            p.text(pos2(sr.max.x - 12.0, sr.center().y), Align2::RIGHT_CENTER, self.folder.label(), theme::regular(12.0), t.text_dim);
+            p.text(pos2(sr.max.x - 12.0, sr.center().y), Align2::RIGHT_CENTER, if self.people.open { "Contacts" } else { self.folder.label() }, theme::regular(12.0), t.text_dim);
         } else {
             let cr = Rect::from_center_size(pos2(sr.max.x - 17.0, sr.center().y), Vec2::splat(22.0));
             let mut c = ui.new_child(egui::UiBuilder::new().max_rect(cr));
@@ -308,7 +308,7 @@ impl App {
     fn rail(&mut self, ui: &mut Ui) {
         let t = self.t;
         let rect = ui.max_rect();
-        let items = [(Icon::Chat, "Messages", true), (Icon::People, "People (MailCraft contacts)", false), (Icon::Gear, "Options", false)];
+        let items = [(Icon::Chat, "Messages", true), (Icon::People, "People (ContactCraft contacts)", false), (Icon::Gear, "Options", false)];
         let mut y = rect.min.y + 4.0 + TAB_H;
         for (i, (icon, tip, _)) in items.iter().enumerate() {
             let r = Rect::from_min_size(pos2(rect.min.x, y), vec2(RAIL_W, 48.0));

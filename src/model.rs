@@ -39,9 +39,15 @@ pub struct Conversation {
     pub outgoing_id: String,
     pub latest_msg_id: String,
     pub participants: Vec<Participant>,
+    /// Number explicitly chosen when starting a chat, for contact photos and names.
+    pub contact_number: String,
 }
 
 impl Conversation {
+    pub fn contact_number(&self) -> &str {
+        if !self.contact_number.is_empty() { &self.contact_number }
+        else { self.others().next().map(|p| p.number.as_str()).unwrap_or("") }
+    }
     pub fn title(&self) -> String {
         if !self.name.is_empty() {
             return self.name.clone();

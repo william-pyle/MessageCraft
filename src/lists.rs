@@ -211,9 +211,9 @@ impl App {
                 // Avatar
                 let ac = pos2(row.min.x + 38.0, row.center().y);
                 let title = c.title();
-                let key = c.participants.iter().find(|p| !p.is_me).map(|p| p.number.clone()).unwrap_or_else(|| c.id.clone());
+                let key = if c.contact_number().is_empty() { c.id.clone() } else { c.contact_number().to_string() };
                 let hex = if c.color.is_empty() { c.participants.iter().find(|p| !p.is_me).map(|p| p.color.clone()).unwrap_or_default() } else { c.color.clone() };
-                widgets::avatar(p, &t, ac, 16.0, &title, &key, &hex, c.group);
+                self.people.avatar(ui, ac, 16.0, &title, &key, &hex, c.group, &t);
 
                 let left = row.min.x + 64.0;
                 let time = timefmt::list(c.ts);

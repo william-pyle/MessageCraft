@@ -9,7 +9,7 @@ mod chrome;
 mod demo;
 mod icons;
 mod lists;
-mod mailcraft;
+mod contactcraft;
 mod people;
 mod model;
 mod reading;

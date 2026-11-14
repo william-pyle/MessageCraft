@@ -11,6 +11,8 @@ Messages the same way Google Messages for web does. It is not made by or affilia
   source (the `bridge` folder) with it.
 - The look follows **MailCraft** (https://github.com/UCS-Care-Group/mailcraft): its colour
   palette, type scale and layout values, MIT OR Apache-2.0.
+- The shared contacts reader includes **contactcraft-store** from ContactCraft
+  (https://github.com/william-pyle/ContactCraft), licensed MIT.
 - **egui / eframe** (MIT OR Apache-2.0) draw the window.
 - **Inter** typeface (SIL Open Font License 1.1, see `assets/fonts/OFL-Inter.txt`), used where
   Windows' Segoe UI isn't available.

@@ -6,6 +6,7 @@ use crate::app::{App, Conn, MediaSlot, PairStep};
 use crate::icons::{self, Icon};
 use crate::model::{Conversation, Media, Message};
 use crate::theme;
+use crate::contactcraft;
 use crate::timefmt;
 use crate::widgets::{self, icon_button};
 
@@ -30,11 +31,19 @@ impl App {
         // Header: the conversation's name, the people in it, and actions.
         let header = Rect::from_min_size(rect.min, vec2(rect.width(), 76.0));
         let p = ui.painter().clone();
-        let title = conv.title();
+        let mut title = conv.title();
+        if !conv.group {
+            if let Some(c) = self.people.contact_for(conv.contact_number()) {
+                if !c.theme.emoji.is_empty() { title.push_str(&format!("  {}", c.theme.emoji)); }
+                if let Some(accent) = contactcraft::color(&c.theme.accent) {
+                    p.rect_filled(Rect::from_min_size(header.min, vec2(header.width(), 3.0)), 0.0, accent);
+                }
+            }
+        }
         widgets::clipped(&p, pos2(header.min.x + 20.0, header.min.y + 22.0), header.width() - 150.0, &title, theme::semibold(17.0), t.text);
-        let key = conv.others().next().map(|p| p.number.clone()).unwrap_or_else(|| conv.id.clone());
+        let key = if conv.contact_number().is_empty() { conv.id.clone() } else { conv.contact_number().to_string() };
         let hex = if conv.color.is_empty() { conv.others().next().map(|p| p.color.clone()).unwrap_or_default() } else { conv.color.clone() };
-        widgets::avatar(&p, &t, pos2(header.min.x + 36.0, header.min.y + 54.0), 16.0, &title, &key, &hex, conv.group);
+        self.people.avatar(ui, pos2(header.min.x + 36.0, header.min.y + 54.0), 16.0, &title, &key, &hex, conv.group, &t);
         let who = if conv.group {
             let names: Vec<String> = conv.others().map(|p| if p.name.is_empty() { p.number.clone() } else { p.name.clone() }).collect();
             names.join(", ")
@@ -53,17 +62,16 @@ impl App {
         let actions = Rect::from_min_size(pos2(header.max.x - 130.0, header.min.y + 8.0), vec2(114.0, 26.0));
         let mut a = ui.new_child(egui::UiBuilder::new().max_rect(actions).layout(egui::Layout::right_to_left(egui::Align::Center)));
         a.spacing_mut().item_spacing.x = 2.0;
-        // The person in a one-to-one conversation: open their MailCraft contact, or add one.
+        // The person in a one-to-one conversation: open or create in ContactCraft.
         if !conv.group && self.people.state == crate::people::ContactsState::Ready {
             if let Some(other) = conv.others().next().cloned() {
-                let existing = self.people.contact_for(&other.number).map(|c| c.id);
-                let tip = if existing.is_some() { "Open in MailCraft contacts" } else { "Add to MailCraft contacts" };
+                let existing = self.people.contact_for(&other.number).map(|c| c.id.clone());
+                let tip = if existing.is_some() { "Open in ContactCraft contacts" } else { "Add to ContactCraft contacts" };
                 if icon_button(&mut a, &t, Icon::Person, 26.0, tip).clicked() {
                     match existing {
                         Some(cid) => {
                             self.people.open = true;
                             self.people.selected = Some(cid);
-                            self.people.editing = None;
                         }
                         None => self.add_contact_from(&other.name, &other.number),
                     }
@@ -89,6 +97,15 @@ impl App {
         let composer_h = 64.0 + files_h;
         let composer = Rect::from_min_max(pos2(rect.min.x + 14.0, rect.max.y - composer_h - 10.0), pos2(rect.max.x - 14.0, rect.max.y - 12.0));
         let messages_rect = Rect::from_min_max(pos2(rect.min.x + 2.0, header.max.y + 2.0), pos2(rect.max.x - 2.0, composer.min.y - 6.0));
+        if !conv.group {
+            if let Some(c) = self.people.contact_for(conv.contact_number()) {
+                    if let Some(col) = contactcraft::color(&c.theme.background) { ui.painter().rect_filled(messages_rect, 0.0, col); }
+                    if let Some(tex) = self.people.background_for(conv.contact_number()) {
+                        let opacity = c.theme.background_opacity;
+                        ui.painter().image(tex.id(), messages_rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE.linear_multiply(opacity as f32 / 100.0));
+                    }
+            }
+        }
 
         let mut mu = ui.new_child(egui::UiBuilder::new().max_rect(messages_rect).layout(egui::Layout::top_down(egui::Align::Min)));
         self.messages_view(&mut mu, &conv);
@@ -264,12 +281,27 @@ impl App {
         to_request: &mut Vec<(String, String, String)>,
     ) -> egui::Response {
         let t = self.t;
-        let (fill, ink) = if m.from_me {
+        let contact = if conv.group {
+            conv.participant(&m.participant_id).and_then(|p| self.people.contact_for(&p.number))
+        } else {
+            self.people.contact_for(conv.contact_number())
+        };
+        let (mut fill, mut ink) = if m.from_me {
             (if m.failed { t.red.linear_multiply(0.35) } else { t.bubble_out }, t.bubble_out_text)
         } else {
             (t.bubble_in, t.text)
         };
-        let font = theme::regular(13.5);
+        let mut radius = 16.0;
+        let mut font_size = 13.5;
+        if let Some(c) = contact {
+            let th = &c.theme;
+            fill = contactcraft::color(if m.from_me { &th.bubble_out } else { &th.bubble_in }).unwrap_or(fill);
+            ink = contactcraft::color(if m.from_me { &th.bubble_out_text } else { &th.bubble_in_text }).unwrap_or(ink);
+            if th.bubble_radius > 0 { radius = th.bubble_radius as f32; }
+            if th.text_size > 0.0 { font_size = th.text_size.clamp(9.0, 30.0); }
+            if !m.from_me { ink = contactcraft::color(&th.text_color).unwrap_or(ink); }
+        }
+        let font = theme::regular(font_size);
         let text_galley = if m.text.is_empty() {
             None
         } else {
@@ -307,7 +339,7 @@ impl App {
             let name = participant.map(|p| p.label().to_string()).unwrap_or_else(|| conv.title());
             let key = participant.map(|p| p.number.clone()).unwrap_or_else(|| conv.id.clone());
             let hex = participant.map(|p| p.color.clone()).unwrap_or_default();
-            widgets::avatar(&p, &t, pos2(row.min.x + 38.0, row.max.y - 14.0), 14.0, &name, &key, &hex, false);
+            self.people.avatar(ui, pos2(row.min.x + 38.0, row.max.y - 14.0), 14.0, &name, &key, &hex, false, &t);
         }
 
         for (md, size) in m.media().iter().zip(media_sizes) {
@@ -358,9 +390,9 @@ impl App {
 
         if let Some(g) = text_galley {
             let br = Rect::from_min_size(pos2(x, y), vec2(bubble_w, text_size.y + 2.0 * BUBBLE_PAD_Y));
-            p.rect_filled(br, 16.0, fill);
+            p.rect_filled(br, radius, fill);
             if m.deleted {
-                p.rect_stroke(br, 16.0, Stroke::new(1.0, t.border), StrokeKind::Inside);
+                p.rect_stroke(br, radius, Stroke::new(1.0, t.border), StrokeKind::Inside);
             }
             let tx = if m.from_me { br.max.x - BUBBLE_PAD_X - text_size.x } else { br.min.x + BUBBLE_PAD_X };
             p.galley(pos2(tx, br.min.y + BUBBLE_PAD_Y), g, ink);

@@ -50,13 +50,19 @@ foreach ($ch in $escaped.ToCharArray()) {
     elseif ($code -gt 127) { [void]$sb.Append("\u$code?") }
     else { [void]$sb.Append($ch) }
 }
-$rtfPath = Join-Path $env:TEMP 'messagecraft-license.rtf'
+$rtfPath = Join-Path $root '.tools\messagecraft-license.rtf'
 "{\rtf1\ansi\deff0{\fonttbl{\f0 Segoe UI;}}\fs18 $($sb.ToString())}" | Set-Content -Path $rtfPath -Encoding ascii
 
 $msi = Join-Path $dist 'MessageCraft-windows-x64.msi'
 if (Test-Path $msi) { Remove-Item $msi -Force }
+$uiExtension = 'WixToolset.UI.wixext'
+$utilExtension = 'WixToolset.Util.wixext'
+$uiCached = Join-Path $env:USERPROFILE '.wix\extensions\WixToolset.UI.wixext\5.0.2\wixext5\WixToolset.UI.wixext.dll'
+$utilCached = Join-Path $env:USERPROFILE '.wix\extensions\WixToolset.Util.wixext\5.0.2\wixext5\WixToolset.Util.wixext.dll'
+if (Test-Path $uiCached) { $uiExtension = $uiCached }
+if (Test-Path $utilCached) { $utilExtension = $utilCached }
 & $wixExe build (Join-Path $here 'messagecraft.wxs') -arch x64 `
-    -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext `
+    -ext $uiExtension -ext $utilExtension `
     -d "Version=$msiVersion" -d "BinDir=$dist" `
     -d "IconPath=$(Join-Path $root 'assets\messagecraft.ico')" -d "LicenseRtf=$rtfPath" `
     -o $msi

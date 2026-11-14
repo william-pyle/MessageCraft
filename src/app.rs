@@ -221,8 +221,8 @@ impl App {
         }
         app.load_cache();
         app.apply_settings(&cc.egui_ctx);
-        // MailCraft's contacts, when MailCraft shares them.
-        app.people.link = Some(crate::mailcraft::Link::start(cc.egui_ctx.clone()));
+        // ContactCraft's shared store is available even when its window is closed.
+        app.people.link = Some(crate::contactcraft::Link::start(cc.egui_ctx.clone()));
         app.contacts_load();
         bridge.start(&cc.egui_ctx);
         bridge.send(json!({"cmd": "connect"}));
@@ -663,7 +663,10 @@ impl App {
                     let ids: HashSet<String> = fresh.iter().map(|c| c.id.clone()).collect();
                     // Conversations that left this folder on the phone leave it here too.
                     self.convs.retain(|id, c| c.folder != folder || ids.contains(id));
-                    for c in fresh {
+                    for mut c in fresh {
+                        if let Some(old) = self.convs.get(&c.id) {
+                            c.contact_number = old.contact_number.clone();
+                        }
                         let changed = self.convs.get(&c.id).map(|old| old.latest_msg_id != c.latest_msg_id).unwrap_or(false);
                         let id = c.id.clone();
                         self.convs.insert(id.clone(), c);
@@ -677,9 +680,20 @@ impl App {
             }
             "conversation" => {
                 if let Some(item) = ev.get("item") {
-                    if let Ok(c) = serde_json::from_value::<Conversation>(item.clone()) {
-                        let id = c.id.clone();
+                    if let Ok(mut c) = serde_json::from_value::<Conversation>(item.clone()) {
                         let opened = ev.get("opened").and_then(|v| v.as_bool()).unwrap_or(false);
+                        if opened && !c.group {
+                            if let Some(nc) = self.new_chat.as_ref().filter(|nc| nc.busy) {
+                                let numbers: Vec<&str> = nc.numbers.split([',', ';', '\n']).map(str::trim).filter(|n| !n.is_empty()).collect();
+                                if numbers.len() == 1 { c.contact_number = numbers[0].to_string(); }
+                            }
+                        }
+                        if c.contact_number.is_empty() {
+                            if let Some(old) = self.convs.get(&c.id) {
+                                c.contact_number = old.contact_number.clone();
+                            }
+                        }
+                        let id = c.id.clone();
                         self.convs.insert(id.clone(), c);
                         self.cache_dirty = true;
                         self.apply_contact_names();
@@ -1032,7 +1046,7 @@ impl eframe::App for App {
         let ctx = ui.ctx().clone();
         self.t = Tokens::for_dark(ui.visuals().dark_mode);
         self.handle_events(&ctx);
-        self.contacts_events();
+        self.contacts_events(&ctx);
         self.keyboard(&ctx);
         self.dropped_files(&ctx);
         self.typing.retain(|_, until| *until > Instant::now());

@@ -28,8 +28,8 @@ MessageCraft is an independent project. It is not made by, endorsed by or affili
 - **The MailCraft look:** title bar with search, File / Home / View / Help ribbon, module rail,
   folder pane, three-line conversation rows and a status bar. Light, dark or follow-Windows themes,
   interface zoom, and tighter spacing.
-- **MailCraft contacts:** see, search, add, edit and delete MailCraft's contacts, text them, and see
-  their names on conversations (see [MailCraft contacts](#mailcraft-contacts)).
+- **ContactCraft contacts:** see and search ContactCraft's contacts, open its editor to add or edit people, text them, and see
+  their names on conversations (see [ContactCraft contacts](#contactcraft-contacts)).
 - **Works offline for reading:** a copy of recent conversations is kept locally, so the window opens
   instantly and shows what it last synced.
 - Keyboard: **Ctrl+N** new conversation, **F5** sync, **Ctrl+F** / **Ctrl+E** search,
@@ -68,30 +68,9 @@ a theme). It shows made-up sample conversations and saves nothing.
 Go to **File › Info › Unpair this computer**. Your phone forgets this PC, and MessageCraft deletes
 its local copy of your conversations. Your messages stay on your phone.
 
-## MailCraft contacts
+## ContactCraft contacts
 
-MessageCraft can show and edit the contacts in [MailCraft](https://github.com/UCS-Care-Group/mailcraft),
-and uses them to put names on conversations your phone only knows by number.
-
-- Click **People** (the second button on the left rail). You get MailCraft's contacts: search them,
-  see a card, and use **New Contact**, **Edit**, **Delete** and **Text** (opens or starts a
-  conversation with the contact's number). Changes are made in MailCraft itself and show there
-  straight away.
-- In a conversation, the person button at the top right opens that person's MailCraft contact, or
-  adds the number to MailCraft's contacts.
-
-MessageCraft talks to MailCraft through MailCraft's own
-[control channel](https://github.com/UCS-Care-Group/mailcraft/blob/main/docs/control-protocol.md).
-It's local only (127.0.0.1), and protected by a secret key MailCraft writes to
-`%APPDATA%\MailCraft` while it runs. MessageCraft makes MailCraft prove it holds that key before it
-sends anything. MailCraft only opens the channel when it's started with sharing on:
-
-- If MailCraft isn't running, **People › Open MailCraft with contact sharing** starts it that way.
-- If MailCraft is already open without sharing, close it first, then use that button.
-- To have MailCraft always share, start it with `mailcraft.exe --control 7991` (for example, add
-  that to its Start Menu shortcut) or set the user environment variable
-  `MAILCRAFT_CONTROL_PORT=7991`. Note that any program you run can then use the channel, with the
-  key, the way MailCraft's own tools do.
+MessageCraft reads the shared ContactCraft database at `%APPDATA%\ContactCraft\contacts.db` (or `CONTACTCRAFT_DATA`) even when ContactCraft is closed. It matches phone numbers to names and photos and uses each contact's theme in chats. The People screen shows contacts and opens ContactCraft's popup to create, edit, or change a theme. The contact button in a conversation opens the matching contact or uses `--edit-phone` to add the number.
 
 ## Where data is kept
 
@@ -202,6 +181,7 @@ the portable zip attached.
   therefore distributed under the AGPL-3.0, and its source is this folder.
 - **The window (`src/`, `web/`)** is MIT OR Apache-2.0. It follows MailCraft's design values (MIT
   OR Apache-2.0).
+- **contactcraft-store** is MIT, with its license in `contactcraft-store/LICENSE`.
 - **Inter** typeface: SIL Open Font License 1.1 (`assets/fonts/OFL-Inter.txt`).
 
 See [NOTICE.md](NOTICE.md) for details.
