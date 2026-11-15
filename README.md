@@ -74,7 +74,7 @@ its local copy of your conversations. Your messages stay on your phone.
 
 ## ContactCraft contacts
 
-MessageCraft reads the shared ContactCraft database at `%APPDATA%\ContactCraft\contacts.db` (or `CONTACTCRAFT_DATA`) even when ContactCraft is closed. It matches phone numbers to names and photos, matches group members to group conversations, and uses their themes and banner pictures in chats. The People screen shows contacts and opens ContactCraft's popup to create, edit, or change a theme. Right-click a conversation to add or edit its contact or contact group in ContactCraft. The ContactCraft group editor needs the current ContactCraft source build until its group release is published.
+MessageCraft reads the shared ContactCraft database at `%APPDATA%\ContactCraft\contacts.db` (or `CONTACTCRAFT_DATA`) even when ContactCraft is closed. It matches phone numbers to names and photos, matches group members to group conversations, and uses their themes and banner pictures in chats. The People screen shows contacts and opens ContactCraft to create, edit, or change a theme. Right-click a conversation to add or edit its contact or contact group in ContactCraft 1.2.0 or later.
 
 ## Where data is kept
 
@@ -115,7 +115,7 @@ MessageCraft.exe  (Rust, egui)   ── commands ─▶  messagecraft-bridge.exe
 Commands (window → helper): `connect`, `reconnect`, `pair` (QR), `pair_google {cookies}`, `cancel_pair`, `sync {folder,count}`,
 `messages {conversation_id,count,before_id?,before_ts?}`, `send {conversation_id,text,tmp_id,files?,reply_to?}`,
 `mark_read`, `typing`, `new_chat {numbers,group_name?}`, `media {media_id,key,mime}`,
-`delete_message`, `unpair`.
+`delete_message`, `delete_history`, `unpair`.
 
 Events (helper → window): `state`, `qr`, `qr_expired`, `google_account`, `emoji`, `emoji_image`,
 `pair_failed`, `paired`, `unpaired`, `phone`, `sims`,
