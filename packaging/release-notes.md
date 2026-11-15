@@ -1,4 +1,4 @@
-## MessageCraft 1.3.1
+## MessageCraft 1.4.0
 
 Your Android phone's text messages on Windows, in the style of MailCraft.
 
@@ -9,18 +9,25 @@ Your Android phone's text messages on Windows, in the style of MailCraft.
 - **MessageCraft-windows.zip**: the portable version. Unzip it and keep both programs in the same
   folder.
 
-### What's in it
+### New in 1.4.0
+
+- Sent messages now reconcile with the phone's confirmation, so the conversation shows one bubble.
+- Sent and received pictures show previews when available. Save any attachment to a chosen file,
+  or click it to open it. Drag files into the conversation to attach them.
+- ContactCraft contact groups supply conversation names and themes, including banner pictures.
+  Right-click a conversation to add or edit its contact or group in ContactCraft 1.2.0.
+- Right-click a message to delete it, or right-click a conversation to delete its history from the
+  phone after confirmation.
+
+### Everything else
 
 - Pair with Google Messages on your Android phone: sign in with your Google account and tap the
   matching emoji on your phone (or scan a QR code on phones that still offer one). You only pair once.
 - Sync the Inbox, Archived, and Spam & blocked folders, with unread counts and pinned conversations.
 - Read conversations with group names, reactions, typing indicators and delivery status.
-- Send texts, pictures and files (attach, or drag and drop). Start new conversations and groups.
-- ContactCraft contacts in MessageCraft: see and search contacts, start a text, and open
-  ContactCraft to add, edit, or change a contact's theme. Names, photos, and chat themes appear
-  in conversations.
-- **New:** MessageCraft checks for new releases when it opens. You can also check from File > About,
-  then download and run the Windows installer from the app.
+- Send texts, pictures and files. Start new conversations and groups.
+- See and search ContactCraft contacts, start a text, and open ContactCraft to edit a contact's theme.
+- Check for updates when the app opens or from File > About.
 - MailCraft's look: ribbon, folder pane, conversation list and reading pane, in light or dark.
 
 ### Getting started
@@ -30,7 +37,7 @@ Google Messages uses. Then tap the emoji MessageCraft shows on your phone. Your 
 on and online. See the [README](https://github.com/william-pyle/MessageCraft#readme) for more.
 
 To use your ContactCraft contacts, click **People** on the left. MessageCraft reads ContactCraft's
-shared contacts even when ContactCraft is closed; adding or editing opens ContactCraft.
+shared contacts and groups even when ContactCraft is closed; adding or editing opens ContactCraft.
 
 MessageCraft isn't code-signed yet, so Windows SmartScreen may warn the first time you run the
 installer. Choose **More info › Run anyway**.

@@ -2,8 +2,8 @@
 //! `%APPDATA%\ContactCraft` (or the folder `CONTACTCRAFT_DATA` names).
 //!
 //! SQLite in WAL mode lets several programs read and write at once, so ContactCraft, MessageCraft
-//! and MailCraft can all open it, whether ContactCraft is running or not. Every change bumps the
-//! store's `revision`; a program that keeps contacts in memory checks [`Store::revision`] now and
+//! and MailCraft can all open it, whether ContactCraft is running or not. Every contact or group
+//! change bumps the store's `revision`; a program that keeps records in memory checks [`Store::revision`] now and
 //! then and reloads when it moved.
 
 use std::path::{Path, PathBuf};
@@ -11,11 +11,11 @@ use std::path::{Path, PathBuf};
 use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
 
-use crate::model::{Contact, phone_key};
+use crate::model::{Contact, ContactGroup, phone_key};
 
 pub type Result<T> = std::result::Result<T, String>;
 
-const SCHEMA_VERSION: i64 = 1;
+const SCHEMA_VERSION: i64 = 2;
 
 pub struct Store {
     conn: Connection,
@@ -35,6 +35,10 @@ pub fn new_id() -> String {
 
 pub fn now() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+}
+
+fn image_owner(owner: &str) -> String {
+    Sha256::digest(owner.as_bytes()).iter().take(8).map(|b| format!("{b:02x}")).collect()
 }
 
 impl Store {
@@ -78,10 +82,19 @@ impl Store {
             CREATE INDEX IF NOT EXISTS contacts_sort ON contacts(sort_key);
             CREATE INDEX IF NOT EXISTS contacts_google ON contacts(google_resource);
             CREATE INDEX IF NOT EXISTS contacts_rev ON contacts(rev);
+            CREATE TABLE IF NOT EXISTS groups (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                rev INTEGER NOT NULL DEFAULT 0,
+                data TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS groups_name ON groups(name);
+            CREATE INDEX IF NOT EXISTS groups_rev ON groups(rev);
             CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);",
         )
         .map_err(err)?;
         conn.execute("INSERT OR IGNORE INTO meta(key, value) VALUES ('schema', ?1)", params![SCHEMA_VERSION.to_string()]).map_err(err)?;
+        conn.execute("UPDATE meta SET value=?1 WHERE key='schema' AND CAST(value AS INTEGER) < ?2", params![SCHEMA_VERSION.to_string(), SCHEMA_VERSION]).map_err(err)?;
         conn.execute("INSERT OR IGNORE INTO meta(key, value) VALUES ('revision', '0')", []).map_err(err)?;
         Ok(Store { conn, dir: dir.to_path_buf() })
     }
@@ -94,7 +107,7 @@ impl Store {
         self.dir.join("photos")
     }
 
-    /// The store's change counter: it moves whenever any program changes a contact.
+    /// The store's change counter: it moves whenever any program changes a contact or group.
     pub fn revision(&self) -> i64 {
         self.conn
             .query_row("SELECT value FROM meta WHERE key='revision'", [], |r| r.get::<_, String>(0))
@@ -124,6 +137,56 @@ impl Store {
     pub fn get(&self, id: &str) -> Result<Option<Contact>> {
         let json: Option<String> = self.conn.query_row("SELECT data FROM contacts WHERE id=?1 AND deleted=0", params![id], |r| r.get(0)).optional().map_err(err)?;
         Ok(json.and_then(|j| serde_json::from_str(&j).ok()))
+    }
+
+    /// Every group, including groups made by another application.
+    pub fn list_groups(&self) -> Result<Vec<ContactGroup>> {
+        let mut st = self.conn.prepare("SELECT data FROM groups ORDER BY name COLLATE NOCASE").map_err(err)?;
+        let rows = st.query_map([], |r| r.get::<_, String>(0)).map_err(err)?;
+        let mut out = Vec::new();
+        for row in rows {
+            out.push(serde_json::from_str(&row.map_err(err)?).map_err(err)?);
+        }
+        Ok(out)
+    }
+
+    pub fn get_group(&self, id: &str) -> Result<Option<ContactGroup>> {
+        let json: Option<String> = self.conn.query_row("SELECT data FROM groups WHERE id=?1", params![id], |r| r.get(0)).optional().map_err(err)?;
+        json.map(|s| serde_json::from_str(&s).map_err(err)).transpose()
+    }
+
+    /// Save a group and bump the shared revision so other open applications reload it.
+    pub fn save_group(&self, group: &mut ContactGroup) -> Result<()> {
+        group.name = group.name.trim().to_string();
+        if group.name.is_empty() {
+            return Err("Give the group a name first.".into());
+        }
+        if group.id.is_empty() { group.id = new_id(); }
+        if group.created.is_empty() { group.created = now(); }
+        group.updated = now();
+        let json = serde_json::to_string(group).map_err(err)?;
+        let tx = self.conn.unchecked_transaction().map_err(err)?;
+        tx.execute("UPDATE meta SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT) WHERE key='revision'", []).map_err(err)?;
+        let rev: i64 = tx.query_row("SELECT CAST(value AS INTEGER) FROM meta WHERE key='revision'", [], |r| r.get(0)).map_err(err)?;
+        tx.execute("INSERT INTO groups(id, name, rev, data) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(id) DO UPDATE SET name=?2, rev=?3, data=?4",
+            params![group.id, group.name, rev, json]).map_err(err)?;
+        tx.commit().map_err(err)
+    }
+
+    pub fn delete_group(&self, id: &str) -> Result<()> {
+        let tx = self.conn.unchecked_transaction().map_err(err)?;
+        let changed = tx.execute("DELETE FROM groups WHERE id=?1", params![id]).map_err(err)?;
+        if changed != 0 {
+            tx.execute("UPDATE meta SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT) WHERE key='revision'", []).map_err(err)?;
+        }
+        tx.commit().map_err(err)
+    }
+
+    /// Groups touched after a revision. A missing ID in `list_groups` means it was deleted.
+    pub fn groups_changed_since(&self, revision: i64) -> Result<Vec<ContactGroup>> {
+        let mut st = self.conn.prepare("SELECT data FROM groups WHERE rev>?1 ORDER BY rev").map_err(err)?;
+        let rows = st.query_map(params![revision], |r| r.get::<_, String>(0)).map_err(err)?;
+        rows.map(|r| serde_json::from_str(&r.map_err(err)?).map_err(err)).collect()
     }
 
     /// The contact with this phone number (any format: the last ten digits are compared).
@@ -242,6 +305,13 @@ impl Store {
     /// deletes it there too.
     pub fn delete(&self, id: &str) -> Result<()> {
         let Some(mut c) = self.get(id)? else { return Ok(()) };
+        // Keep group membership useful when a contact is removed: its numbers remain as
+        // number-only members. A contact without numbers simply leaves the group.
+        for mut group in self.list_groups()?.into_iter().filter(|g| g.members.contains(&crate::model::GroupMember::Contact { id: id.to_string() })) {
+            group.remove_member(&crate::model::GroupMember::Contact { id: id.to_string() });
+            for phone in &c.phones { group.add_number(&phone.value); }
+            self.save_group(&mut group)?;
+        }
         self.remove_photo_file(&c.photo);
         c.photo.clear();
         if c.google.as_ref().is_some_and(|g| !g.resource_name.is_empty()) {
@@ -349,7 +419,12 @@ impl Store {
 
     /// The full path of the contact's background picture, when it has one.
     pub fn background_path(&self, c: &Contact) -> Option<PathBuf> {
-        let n = &c.theme.background_image;
+        self.theme_background_path(&c.theme)
+    }
+
+    /// The full path of a contact or group's background picture.
+    pub fn theme_background_path(&self, theme: &crate::model::ContactTheme) -> Option<PathBuf> {
+        let n = &theme.background_image;
         if n.is_empty() || n.contains(['/', '\\']) || n.contains("..") {
             return None;
         }
@@ -357,9 +432,22 @@ impl Store {
         p.is_file().then_some(p)
     }
 
+    /// A banner picture saved with a contact or group theme.
+    pub fn banner_path(&self, theme: &crate::model::ContactTheme) -> Option<PathBuf> {
+        let n = &theme.banner_image;
+        if n.is_empty() || n.contains(['/', '\\']) || n.contains("..") { return None; }
+        let p = self.theme_dir("backgrounds").join(n);
+        p.is_file().then_some(p)
+    }
+
     /// The full path of the contact's font file: one added to the store, else Windows' own.
     pub fn font_path(&self, c: &Contact) -> Option<PathBuf> {
-        let n = &c.theme.font_file;
+        self.theme_font_path(&c.theme)
+    }
+
+    /// The full path of a contact or group's font file.
+    pub fn theme_font_path(&self, theme: &crate::model::ContactTheme) -> Option<PathBuf> {
+        let n = &theme.font_file;
         if n.is_empty() || n.contains(['/', '\\']) || n.contains("..") {
             return None;
         }
@@ -381,6 +469,25 @@ impl Store {
         let name = format!("{}-{hash}.{ext}", c.id);
         std::fs::write(self.theme_dir("backgrounds").join(&name), bytes).map_err(err)?;
         c.theme.background_image = name;
+        Ok(())
+    }
+
+    /// Store a banner picture in the shared theme folder. Save the owner afterwards.
+    pub fn set_banner(&self, theme: &mut crate::model::ContactTheme, owner_id: &str, bytes: &[u8]) -> Result<()> {
+        let ext = sniff_image(bytes).ok_or("That file isn't a PNG, JPEG, GIF or WebP picture.")?;
+        let hash: String = Sha256::digest(bytes).iter().take(6).map(|b| format!("{b:02x}")).collect();
+        let name = format!("{}-banner-{hash}.{ext}", image_owner(owner_id));
+        std::fs::write(self.theme_dir("backgrounds").join(&name), bytes).map_err(err)?;
+        theme.banner_image = name;
+        Ok(())
+    }
+
+    pub fn set_group_background(&self, group: &mut ContactGroup, bytes: &[u8]) -> Result<()> {
+        let ext = sniff_image(bytes).ok_or("That file isn't a PNG, JPEG, GIF or WebP picture.")?;
+        let hash: String = Sha256::digest(bytes).iter().take(6).map(|b| format!("{b:02x}")).collect();
+        let name = format!("{}-background-{hash}.{ext}", image_owner(&group.id));
+        std::fs::write(self.theme_dir("backgrounds").join(&name), bytes).map_err(err)?;
+        group.theme.background_image = name;
         Ok(())
     }
 

@@ -175,6 +175,8 @@ impl App {
 
         let row_h = if self.settings.tighter { 58.0 } else { 72.0 };
         let mut clicked: Option<String> = None;
+        enum RowAction { Contact(Vec<String>), Group(Vec<String>), Clear(String) }
+        let mut action: Option<RowAction> = None;
         ScrollArea::vertical().auto_shrink([false, false]).id_salt(("list", self.folder.code())).show(ui, |ui| {
             ui.spacing_mut().item_spacing.y = 0.0;
             let w = ui.available_width();
@@ -188,7 +190,7 @@ impl App {
                 }
                 let (r, resp) = ui.allocate_exact_size(vec2(w, row_h), Sense::click());
                 let selected_now = self.selected.as_deref() == Some(c.id.as_str());
-                let a11y = format!("{}{}, {}", if c.unread { "Unread, " } else { "" }, c.title(), c.snippet);
+                let a11y = format!("{}{}, {}", if c.unread { "Unread, " } else { "" }, self.people.title_for(c), c.snippet);
                 resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, selected_now, a11y.clone()));
                 if !ui.is_rect_visible(r) {
                     if resp.clicked() {
@@ -210,10 +212,8 @@ impl App {
                 }
                 // Avatar
                 let ac = pos2(row.min.x + 38.0, row.center().y);
-                let title = c.title();
-                let key = if c.contact_number().is_empty() { c.id.clone() } else { c.contact_number().to_string() };
-                let hex = if c.color.is_empty() { c.participants.iter().find(|p| !p.is_me).map(|p| p.color.clone()).unwrap_or_default() } else { c.color.clone() };
-                self.people.avatar(ui, ac, 16.0, &title, &key, &hex, c.group, &t);
+                let title = self.people.title_for(c);
+                self.people.conversation_avatar(ui, ac, 16.0, c, &t);
 
                 let left = row.min.x + 64.0;
                 let time = timefmt::list(c.ts);
@@ -254,11 +254,39 @@ impl App {
                 if resp.clicked() {
                     clicked = Some(c.id.clone());
                 }
+                resp.context_menu(|ui| {
+                    if c.group {
+                        if let Some(group) = self.people.group_record_for(c) {
+                            if ui.button("Edit contact group in ContactCraft").clicked() {
+                                action = Some(RowAction::Group(vec!["--open-group".into(), group.id.clone()])); ui.close();
+                            }
+                        } else if ui.button("Add contact group in ContactCraft").clicked() {
+                            let mut args = vec!["--new-group".into(), "--group-name".into(), c.title()];
+                            for p in c.others().filter(|p| !p.number.is_empty()) { args.push("--group-number".into()); args.push(p.number.clone()); }
+                            action = Some(RowAction::Group(args)); ui.close();
+                        }
+                    } else if let Some(contact) = self.people.contact_for(c.contact_number()) {
+                        if ui.button("Edit contact in ContactCraft").clicked() {
+                            action = Some(RowAction::Contact(vec!["--edit-contact".into(), contact.id.clone()])); ui.close();
+                        }
+                    } else if !c.contact_number().is_empty() && ui.button("Add contact in ContactCraft").clicked() {
+                        action = Some(RowAction::Contact(vec!["--edit-phone".into(), c.contact_number().into()])); ui.close();
+                    }
+                    ui.separator();
+                    if ui.button("Delete message history…").clicked() { action = Some(RowAction::Clear(c.id.clone())); ui.close(); }
+                });
             }
             ui.add_space(8.0);
         });
         if let Some(id) = clicked {
             self.select(&id);
+        }
+        if let Some(action) = action {
+            match action {
+                RowAction::Contact(args) => self.edit_contact(args),
+                RowAction::Group(args) => self.open_group_editor(args),
+                RowAction::Clear(id) => self.confirm_clear_history = Some(id),
+            }
         }
     }
 }

@@ -46,6 +46,30 @@ pub struct Thread {
     pub scroll_to_end: bool,
 }
 
+/// The phone may omit our temporary ID when it echoes a sent message. Match a pending
+/// optimistic bubble by content and a short time window so the echo replaces it.
+fn pending_match(local: &Message, confirmed: &Message) -> bool {
+    if !local.local || local.failed || !confirmed.from_me || local.conversation_id != confirmed.conversation_id {
+        return false;
+    }
+    if !confirmed.tmp_id.is_empty() && local.tmp_id == confirmed.tmp_id {
+        return true;
+    }
+    if local.text != confirmed.text || (local.ts - confirmed.ts).abs() > 120_000 {
+        return false;
+    }
+    let a = local.media();
+    let b = confirmed.media();
+    a.len() == b.len() && a.iter().zip(b).all(|(x, y)| x.name.is_empty() || y.name.is_empty() || x.name == y.name)
+}
+
+fn confirmed_position(messages: &[Message], confirmed: &Message) -> Option<usize> {
+    messages.iter().position(|m| !m.id.is_empty() && m.id == confirmed.id)
+        .or_else(|| messages.iter().position(|m| !confirmed.tmp_id.is_empty() && m.tmp_id == confirmed.tmp_id))
+        .or_else(|| messages.iter().enumerate().filter(|(_, m)| pending_match(m, confirmed))
+            .min_by_key(|(_, m)| (m.ts - confirmed.ts).abs()).map(|(i, _)| i))
+}
+
 #[derive(Default, Clone)]
 pub struct Draft {
     pub text: String,
@@ -123,8 +147,11 @@ pub struct App {
     pub media: HashMap<String, MediaSlot>,
     pub media_paths: HashMap<String, PathBuf>,
     pub open_when_ready: HashSet<String>,
+    pub save_when_ready: HashMap<String, Vec<PathBuf>>,
     decoded_tx: Sender<(String, Result<ColorImage, String>)>,
     decoded_rx: Receiver<(String, Result<ColorImage, String>)>,
+    save_tx: Sender<(PathBuf, Result<(), String>)>,
+    save_rx: Receiver<(PathBuf, Result<(), String>)>,
     pub search: String,
     pub ribbon: RibbonTab,
     pub backstage: Option<Backstage>,
@@ -134,6 +161,7 @@ pub struct App {
     pub last_sync: Option<i64>,
     pub new_chat: Option<NewChat>,
     pub confirm_unpair: bool,
+    pub confirm_clear_history: Option<String>,
     pub typing: HashMap<String, Instant>,
     pub focus_composer: bool,
     pub focus_search: bool,
@@ -166,6 +194,7 @@ impl App {
             .and_then(|b| serde_json::from_slice(&b).ok())
             .unwrap_or_default();
         let (decoded_tx, decoded_rx) = channel();
+        let (save_tx, save_rx) = channel();
         let mut app = App {
             conn: Conn::Starting,
             qr: None,
@@ -185,8 +214,11 @@ impl App {
             media: HashMap::new(),
             media_paths: HashMap::new(),
             open_when_ready: HashSet::new(),
+            save_when_ready: HashMap::new(),
             decoded_tx,
             decoded_rx,
+            save_tx,
+            save_rx,
             search: String::new(),
             ribbon: RibbonTab::Home,
             backstage: None,
@@ -196,6 +228,7 @@ impl App {
             last_sync: None,
             new_chat: None,
             confirm_unpair: false,
+            confirm_clear_history: None,
             typing: HashMap::new(),
             focus_composer: false,
             focus_search: false,
@@ -346,6 +379,7 @@ impl App {
         self.drafts.clear();
         self.media.clear();
         self.media_paths.clear();
+        self.save_when_ready.clear();
         self.selected = None;
         self.phone = None;
         let _ = std::fs::remove_file(self.bridge.data_dir.join(CACHE_FILE));
@@ -409,7 +443,7 @@ impl App {
         self.bridge.send(json!({"cmd": "messages", "conversation_id": id, "count": 50, "before_id": cid, "before_ts": cts}));
     }
 
-    pub fn send_draft(&mut self, conv_id: &str) {
+    pub fn send_draft(&mut self, conv_id: &str, ctx: &egui::Context) {
         let draft = self.drafts.get(conv_id).cloned().unwrap_or_default();
         let text = draft.text.trim_end().to_string();
         if text.trim().is_empty() && draft.files.is_empty() {
@@ -422,6 +456,23 @@ impl App {
         self.sent_count += 1;
         let tmp_id = format!("mc{}{}", timefmt::now_ms(), self.sent_count);
         let files: Vec<String> = draft.files.iter().map(|p| p.display().to_string()).collect();
+        let local_media: Vec<crate::model::Media> = draft.files.iter().enumerate().map(|(i, path)| {
+            let id = format!("local-{tmp_id}-{i}");
+            let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            let media = crate::model::Media { id: id.clone(), name, mime: "local/file".into(), ..Default::default() };
+            self.media_paths.insert(id.clone(), path.clone());
+            if media.is_image() {
+                self.media.insert(id.clone(), MediaSlot::Decoding);
+                let tx = self.decoded_tx.clone();
+                let ctx = ctx.clone();
+                let path = path.clone();
+                std::thread::spawn(move || {
+                    let _ = tx.send((id, decode_image(&path)));
+                    ctx.request_repaint();
+                });
+            }
+            media
+        }).collect();
         let local = Message {
             id: tmp_id.clone(),
             conversation_id: conv_id.to_string(),
@@ -431,21 +482,7 @@ impl App {
             status: "sending".into(),
             tmp_id: tmp_id.clone(),
             local: true,
-            media: if draft.files.is_empty() {
-                None
-            } else {
-                Some(
-                    draft
-                        .files
-                        .iter()
-                        .map(|p| crate::model::Media {
-                            name: p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
-                            mime: "local/file".into(),
-                            ..Default::default()
-                        })
-                        .collect(),
-                )
-            },
+            media: (!local_media.is_empty()).then_some(local_media),
             ..Default::default()
         };
         let t = self.threads.entry(conv_id.to_string()).or_default();
@@ -479,16 +516,45 @@ impl App {
     }
 
     pub fn open_media(&mut self, id: &str, key: &str, mime: &str) {
+        if id.is_empty() { self.notify("This attachment has no download ID from the phone.", true); return; }
         if let Some(path) = self.media_paths.get(id).cloned() {
             open_path(&path);
             return;
         }
         self.open_when_ready.insert(id.to_string());
-        if !self.media.contains_key(id) {
+        if !self.media.contains_key(id) || matches!(self.media.get(id), Some(MediaSlot::Failed(_))) {
             self.media.insert(id.to_string(), MediaSlot::Loading);
             self.bridge.send(json!({"cmd": "media", "media_id": id, "key": key, "mime": mime}));
         }
         self.notify("Downloading the attachment from your phone…", false);
+    }
+
+    pub fn save_media(&mut self, media: &crate::model::Media, ctx: &egui::Context) {
+        let (id, key) = if !media.id.is_empty() { (&media.id, &media.key) } else { (&media.thumb_id, &media.thumb_key) };
+        if id.is_empty() { self.notify("This attachment has no download ID from the phone.", true); return; }
+        let name = std::path::Path::new(&media.name).file_name().and_then(|n| n.to_str())
+            .filter(|n| !n.is_empty()).unwrap_or("attachment");
+        let Some(destination) = rfd::FileDialog::new().set_title("Save attachment").set_file_name(name).save_file() else { return };
+        if let Some(path) = self.media_paths.get(id) {
+            self.queue_save(path.clone(), destination, ctx);
+        } else {
+            self.save_when_ready.entry(id.to_string()).or_default().push(destination);
+            if !matches!(self.media.get(id), Some(MediaSlot::Loading | MediaSlot::Decoding)) {
+                self.media.remove(id); // Retry a failed preview download.
+                self.request_media(id, key, media.download_mime());
+            }
+            self.notify("Downloading the attachment from your phone…", false);
+        }
+    }
+
+    fn queue_save(&self, source: PathBuf, destination: PathBuf, ctx: &egui::Context) {
+        let tx = self.save_tx.clone();
+        let ctx = ctx.clone();
+        std::thread::spawn(move || {
+            let result = std::fs::copy(&source, &destination).map(|_| ()).map_err(|e| e.to_string());
+            let _ = tx.send((destination, result));
+            ctx.request_repaint();
+        });
     }
 
     /// Pair with a QR code (phones whose Device pairing screen still has a QR code scanner).
@@ -590,6 +656,12 @@ impl App {
                 Err(e) => {
                     self.media.insert(id, MediaSlot::Failed(e));
                 }
+            }
+        }
+        while let Ok((destination, result)) = self.save_rx.try_recv() {
+            match result {
+                Ok(()) => self.notify(format!("Saved attachment to {}", destination.display()), false),
+                Err(e) => self.notify(format!("Couldn't save the attachment: {e}"), true),
             }
         }
     }
@@ -783,7 +855,7 @@ impl App {
                     t.loading = false;
                     let first_load = !t.loaded;
                     // Keep messages typed here that the phone hasn't confirmed yet.
-                    let pending: Vec<Message> = t.messages.drain(..).filter(|m| m.local && !items.iter().any(|i| i.tmp_id == m.tmp_id)).collect();
+                    let pending: Vec<Message> = t.messages.drain(..).filter(|m| m.local && !items.iter().any(|i| pending_match(m, i))).collect();
                     t.messages = items;
                     t.messages.extend(pending);
                     t.loaded = true;
@@ -808,7 +880,7 @@ impl App {
                 let ts = m.ts;
                 let from_me = m.from_me;
                 if let Some(t) = self.threads.get_mut(&cid) {
-                    if let Some(pos) = t.messages.iter().position(|x| x.id == m.id || (!m.tmp_id.is_empty() && x.tmp_id == m.tmp_id)) {
+                    if let Some(pos) = confirmed_position(&t.messages, &m) {
                         if m.deleted {
                             t.messages.remove(pos);
                         } else {
@@ -844,8 +916,12 @@ impl App {
             }
             "send_result" => {
                 let ok = ev.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
-                if !ok {
-                    let tmp = s("tmp_id");
+                let tmp = s("tmp_id");
+                if ok {
+                    if let Some(t) = self.threads.get_mut(&s("conversation_id")) {
+                        if let Some(m) = t.messages.iter_mut().find(|m| m.tmp_id == tmp) { m.status = "sent".into(); }
+                    }
+                } else {
                     let err = s("error");
                     if let Some(t) = self.threads.get_mut(&s("conversation_id")) {
                         if let Some(m) = t.messages.iter_mut().find(|m| m.tmp_id == tmp) {
@@ -870,6 +946,9 @@ impl App {
                 if ev.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
                     let path = PathBuf::from(s("path"));
                     self.media_paths.insert(id.clone(), path.clone());
+                    if let Some(destinations) = self.save_when_ready.remove(&id) {
+                        for destination in destinations { self.queue_save(path.clone(), destination, ctx); }
+                    }
                     if self.open_when_ready.remove(&id) {
                         open_path(&path);
                     }
@@ -891,7 +970,8 @@ impl App {
                     }
                 } else {
                     let err = s("error");
-                    if self.open_when_ready.remove(&id) {
+                    let saving = self.save_when_ready.remove(&id).is_some();
+                    if self.open_when_ready.remove(&id) || saving {
                         self.notify(format!("The attachment couldn't be downloaded: {err}"), true);
                     }
                     self.media.insert(id, MediaSlot::Failed(err));
@@ -901,6 +981,23 @@ impl App {
                 let mid = s("message_id");
                 for t in self.threads.values_mut() {
                     t.messages.retain(|m| m.id != mid);
+                }
+                self.cache_dirty = true;
+            }
+            "history_deleted" => {
+                let cid = s("conversation_id");
+                if ev.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
+                    self.threads.remove(&cid);
+                    self.convs.remove(&cid);
+                    self.drafts.remove(&cid);
+                    if self.selected.as_deref() == Some(&cid) { self.selected = None; }
+                    self.cache_dirty = true;
+                    self.notify("Message history deleted from your phone.", false);
+                    self.sync_now();
+                } else {
+                    let deleted = ev.get("deleted").and_then(|v| v.as_u64()).unwrap_or(0);
+                    self.notify(format!("Couldn't finish deleting the history after {deleted} messages: {}", s("error")), true);
+                    self.load_thread(&cid, true);
                 }
             }
             "phone_alert" => self.notify(s("text"), false),
@@ -945,7 +1042,7 @@ impl App {
             .filter(|c| !self.unread_only || c.unread)
             .filter(|c| {
                 q.is_empty()
-                    || c.title().to_lowercase().contains(&q)
+                    || self.people.title_for(c).to_lowercase().contains(&q)
                     || c.snippet.to_lowercase().contains(&q)
                     || c.participants.iter().any(|p| p.number.replace([' ', '-', '(', ')'], "").contains(&q.replace([' ', '-', '(', ')'], "")) || p.name.to_lowercase().contains(&q))
             })
@@ -1022,6 +1119,8 @@ impl App {
         if esc {
             if self.new_chat.is_some() {
                 self.new_chat = None;
+            } else if self.confirm_clear_history.is_some() {
+                self.confirm_clear_history = None;
             } else if self.confirm_unpair {
                 self.confirm_unpair = false;
             } else if self.backstage.is_some() {
@@ -1050,7 +1149,9 @@ impl App {
             return;
         }
         if let Some(id) = self.selected.clone() {
-            self.drafts.entry(id).or_default().files.extend(dropped);
+            let files: Vec<PathBuf> = dropped.into_iter().filter(|path| path.is_file()).collect();
+            if files.is_empty() { self.notify("Drop files to attach them.", false); return; }
+            self.drafts.entry(id).or_default().files.extend(files);
             self.focus_composer = true;
         } else {
             self.notify("Open a conversation first, then drop files on it to attach them.", false);
@@ -1062,7 +1163,7 @@ impl App {
         let mut title = format!("{} - MessageCraft", self.folder.label());
         if let Some(id) = &self.selected {
             if let Some(c) = self.convs.get(id) {
-                title = format!("{} - MessageCraft", c.title());
+                title = format!("{} - MessageCraft", self.people.title_for(c));
             }
         }
         if unread > 0 {
@@ -1087,6 +1188,30 @@ fn decode_image(path: &std::path::Path) -> Result<ColorImage, String> {
     let rgba = img.to_rgba8();
     let size = [rgba.width() as usize, rgba.height() as usize];
     Ok(ColorImage::from_rgba_unmultiplied(size, rgba.as_raw()))
+}
+
+#[cfg(test)]
+mod message_reconcile_tests {
+    use super::*;
+
+    fn message(id: &str, tmp_id: &str, text: &str, ts: i64, local: bool) -> Message {
+        Message { id: id.into(), tmp_id: tmp_id.into(), text: text.into(), ts,
+            local, from_me: true, conversation_id: "chat".into(), ..Default::default() }
+    }
+
+    #[test]
+    fn phone_echo_without_tmp_id_replaces_optimistic_message() {
+        let local = message("temp", "temp", "hello", 100_000, true);
+        let echo = message("phone-1", "", "hello", 101_000, false);
+        assert_eq!(confirmed_position(&[local], &echo), Some(0));
+    }
+
+    #[test]
+    fn unrelated_or_distant_echo_does_not_replace_pending_message() {
+        let local = message("temp", "temp", "hello", 100_000, true);
+        assert_eq!(confirmed_position(&[local.clone()], &message("phone-1", "", "other", 101_000, false)), None);
+        assert_eq!(confirmed_position(&[local], &message("phone-2", "", "hello", 300_000, false)), None);
+    }
 }
 
 impl eframe::App for App {

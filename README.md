@@ -22,14 +22,17 @@ MessageCraft is an independent project. It is not made by, endorsed by or affili
 - **Read:** chat-style conversation view with day separators, group-chat sender names, reactions,
   typing indicators, and sent / delivered / read status.
 - **Send:** text messages, plus pictures and files (attach button, or drag and drop onto the
-  window). Press Enter to send, Shift+Enter for a new line (configurable).
-- **Pictures and attachments** download from your phone on demand. Click one to open it full size.
+  conversation). Press Enter to send, Shift+Enter for a new line (configurable).
+- **Pictures and attachments** show previews when available. Click one to open it, or choose
+  **Save** to download it to a file. A local picture shows while your phone confirms the send.
 - **New conversations** with one number, or several for a group.
 - **The MailCraft look:** title bar with search, File / Home / View / Help ribbon, module rail,
   folder pane, three-line conversation rows and a status bar. Light, dark or follow-Windows themes,
   interface zoom, and tighter spacing.
-- **ContactCraft contacts:** see and search ContactCraft's contacts, open its editor to add or edit people, text them, and see
-  their names on conversations (see [ContactCraft contacts](#contactcraft-contacts)).
+- **ContactCraft contacts and groups:** use shared names, pictures, themes and banner images in
+  conversations. Right-click a conversation to add or edit its contact or group.
+- **Delete:** right-click a message to delete it, or right-click a conversation to delete its
+  full message history from your phone after confirmation.
 - **Works offline for reading:** a copy of recent conversations is kept locally, so the window opens
   instantly and shows what it last synced.
 - **Updates:** checks GitHub Releases when the app opens and offers to download and install a newer Windows release. You can also check in File > About. Your local data stays in place.
@@ -71,7 +74,7 @@ its local copy of your conversations. Your messages stay on your phone.
 
 ## ContactCraft contacts
 
-MessageCraft reads the shared ContactCraft database at `%APPDATA%\ContactCraft\contacts.db` (or `CONTACTCRAFT_DATA`) even when ContactCraft is closed. It matches phone numbers to names and photos and uses each contact's theme in chats. The People screen shows contacts and opens ContactCraft's popup to create, edit, or change a theme. The contact button in a conversation opens the matching contact or uses `--edit-phone` to add the number.
+MessageCraft reads the shared ContactCraft database at `%APPDATA%\ContactCraft\contacts.db` (or `CONTACTCRAFT_DATA`) even when ContactCraft is closed. It matches phone numbers to names and photos, matches group members to group conversations, and uses their themes and banner pictures in chats. The People screen shows contacts and opens ContactCraft's popup to create, edit, or change a theme. Right-click a conversation to add or edit its contact or contact group in ContactCraft. The ContactCraft group editor needs the current ContactCraft source build until its group release is published.
 
 ## Where data is kept
 

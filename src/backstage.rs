@@ -275,6 +275,27 @@ impl App {
                 self.start_new_chat();
             }
         }
+        if let Some(cid) = self.confirm_clear_history.clone() {
+            let mut close = false;
+            let mut go = false;
+            let title = self.convs.get(&cid).map(|c| self.people.title_for(c)).unwrap_or_else(|| "this conversation".into());
+            let modal = egui::Modal::new(egui::Id::unique("clear_history")).frame(dialog_frame(&t)).show(ctx, |ui| {
+                ui.set_width(420.0);
+                ui.label(egui::RichText::new("Delete message history?").font(theme::semibold(17.0)).color(t.text));
+                ui.add(egui::Label::new(egui::RichText::new(format!("Delete every message in {title} from your phone? This cannot be undone.")).font(theme::regular(13.0)).color(t.text_dim)).wrap());
+                ui.add_space(10.0);
+                ui.horizontal(|ui| {
+                    if widgets::primary_button(ui, &t, "Delete history", true).clicked() { go = true; }
+                    if widgets::secondary_button(ui, &t, "Cancel").clicked() { close = true; }
+                });
+            });
+            if modal.should_close() || close { self.confirm_clear_history = None; }
+            if go {
+                self.confirm_clear_history = None;
+                self.bridge.send(serde_json::json!({"cmd": "delete_history", "conversation_id": cid}));
+                self.notify("Deleting message history from your phone…", false);
+            }
+        }
         if self.confirm_unpair {
             let mut close = false;
             let mut go = false;

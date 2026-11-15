@@ -1,11 +1,11 @@
 //! # ContactCraft's shared contact store
 //!
-//! ContactCraft keeps its contacts where every Craft app can reach them, whether ContactCraft is
+//! ContactCraft keeps its contacts and groups where other applications can reach them, whether ContactCraft is
 //! running or not: a SQLite database and a folder of pictures in `%APPDATA%\ContactCraft`.
 //! This crate is the way in. Add it to another Craft app:
 //!
 //! ```toml
-//! contactcraft-store = { path = "<ContactCraft>/app/store" }
+//! contactcraft-store = { path = "<ContactCraft>/store" }
 //! ```
 //!
 //! and then:
@@ -19,7 +19,7 @@
 //! }
 //! ```
 //!
-//! Changes made through the store show in ContactCraft at once (it watches
+//! Changes to contacts or groups made through the store show in ContactCraft (it watches
 //! [`Store::revision`]). ContactCraft never connects to Google: contacts come in and go out only
 //! through files (vCard, CSV, JSON).
 //! See `docs/shared-contacts.md` for the database layout, for programs not written in Rust.

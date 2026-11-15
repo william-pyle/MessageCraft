@@ -83,7 +83,17 @@ pub struct Media {
 
 impl Media {
     pub fn is_image(&self) -> bool {
-        self.mime.starts_with("image/")
+        self.mime.starts_with("image/") || ["jpg", "jpeg", "png", "gif", "webp", "jfif"]
+            .iter().any(|ext| self.name.to_ascii_lowercase().ends_with(&format!(".{ext}")))
+    }
+    pub fn download_mime(&self) -> &str {
+        if self.mime.starts_with("image/") { return &self.mime; }
+        let name = self.name.to_ascii_lowercase();
+        if name.ends_with(".png") { "image/png" }
+        else if name.ends_with(".gif") { "image/gif" }
+        else if name.ends_with(".webp") { "image/webp" }
+        else if name.ends_with(".jpg") || name.ends_with(".jpeg") || name.ends_with(".jfif") { "image/jpeg" }
+        else { &self.mime }
     }
 }
 

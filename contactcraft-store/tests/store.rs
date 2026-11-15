@@ -1,6 +1,59 @@
 //! The store, the importers and the exporters, checked end to end in a temporary folder.
 
-use contactcraft_store::{Contact, ContactTheme, Email, Labeled, Store, csv, vcard};
+use contactcraft_store::{Contact, ContactGroup, ContactTheme, Email, GroupMember, Labeled, Store, csv, vcard};
+
+#[test]
+fn groups_share_mixed_members_and_survive_contact_deletion() {
+    let (store, dir) = temp_store("groups");
+    let mut contact = Contact::new();
+    contact.name.given = "Anna".into();
+    contact.phones.push(Labeled::new("mobile", "+1 555 010 2030"));
+    store.save(&mut contact).unwrap();
+
+    let mut group = ContactGroup::new("Weekend team");
+    group.add_contact(&contact.id);
+    group.add_contact(&contact.id);
+    group.add_number("+1 555 010 9999");
+    group.add_number("+1 555 010 9999");
+    assert_eq!(group.members.len(), 2);
+    group.theme.accent = "#112233".into();
+    store.set_banner(&mut group.theme, "weekend", b"\x89PNGtest").unwrap();
+    let rev = store.revision();
+    store.save_group(&mut group).unwrap();
+    assert!(store.revision() > rev);
+
+    let other = Store::open(&dir).unwrap();
+    let loaded = other.get_group(&group.id).unwrap().unwrap();
+    assert_eq!(loaded.name, "Weekend team");
+    assert_eq!(loaded.theme.accent, "#112233");
+    assert!(other.banner_path(&loaded.theme).is_some());
+    assert_eq!(other.groups_changed_since(rev).unwrap().len(), 1);
+    assert_eq!(other.list_groups().unwrap().len(), 1);
+
+    other.delete(&contact.id).unwrap();
+    let loaded = store.get_group(&group.id).unwrap().unwrap();
+    assert!(loaded.members.contains(&GroupMember::Number { number: "+1 555 010 2030".into() }));
+    assert!(!loaded.members.contains(&GroupMember::Contact { id: contact.id }));
+    store.delete_group(&group.id).unwrap();
+    assert!(other.list_groups().unwrap().is_empty());
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn opening_a_version_one_store_adds_groups() {
+    let (store, dir) = temp_store("group-migration");
+    drop(store);
+    let conn = rusqlite::Connection::open(dir.join("contacts.db")).unwrap();
+    conn.execute_batch("DROP TABLE groups; UPDATE meta SET value='1' WHERE key='schema';").unwrap();
+    drop(conn);
+
+    let store = Store::open(&dir).unwrap();
+    assert_eq!(store.meta("schema").as_deref(), Some("2"));
+    let mut group = ContactGroup::new("Migrated");
+    store.save_group(&mut group).unwrap();
+    assert_eq!(store.list_groups().unwrap().len(), 1);
+    let _ = std::fs::remove_dir_all(dir);
+}
 
 fn temp_store(name: &str) -> (Store, std::path::PathBuf) {
     let dir = std::env::temp_dir().join(format!("contactcraft-test-{name}-{}", std::process::id()));

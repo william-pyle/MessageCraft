@@ -31,33 +31,33 @@ impl App {
         // Header: the conversation's name, the people in it, and actions.
         let header = Rect::from_min_size(rect.min, vec2(rect.width(), 76.0));
         let p = ui.painter().clone();
-        let mut title = conv.title();
-        if !conv.group {
-            if let Some(c) = self.people.contact_for(conv.contact_number()) {
-                if !c.theme.emoji.is_empty() { title.push_str(&format!("  {}", c.theme.emoji)); }
-                if let Some(accent) = contactcraft::color(&c.theme.accent) {
-                    p.rect_filled(Rect::from_min_size(header.min, vec2(header.width(), 3.0)), 0.0, accent);
-                }
-            }
+        let header_theme = self.people.theme_for(&conv).cloned();
+        let banner = self.people.banner_for_conv(&conv).cloned();
+        let colored = header_theme.as_ref().and_then(|th| contactcraft::color(&th.accent));
+        if let Some(accent) = colored { p.rect_filled(header, 8.0, accent); }
+        if let Some(tex) = banner.as_ref() {
+            p.image(tex.id(), header, crate::people::cover_uv(tex.size_vec2(), header.size()), Color32::WHITE);
         }
-        widgets::clipped(&p, pos2(header.min.x + 20.0, header.min.y + 22.0), header.width() - 150.0, &title, theme::semibold(17.0), t.text);
-        let key = if conv.contact_number().is_empty() { conv.id.clone() } else { conv.contact_number().to_string() };
-        let hex = if conv.color.is_empty() { conv.others().next().map(|p| p.color.clone()).unwrap_or_default() } else { conv.color.clone() };
-        self.people.avatar(ui, pos2(header.min.x + 36.0, header.min.y + 54.0), 16.0, &title, &key, &hex, conv.group, &t);
+        let header_ink = header_theme.as_ref().and_then(|th| contactcraft::color(&th.text))
+            .unwrap_or(if colored.is_some() || banner.is_some() { Color32::WHITE } else { t.text });
+        let mut title = self.people.title_for(&conv);
+        if let Some(th) = &header_theme { if !th.emoji.is_empty() { title.push_str(&format!("  {}", th.emoji)); } }
+        widgets::clipped(&p, pos2(header.min.x + 20.0, header.min.y + 22.0), header.width() - 150.0, &title, theme::semibold(17.0), header_ink);
+        self.people.conversation_avatar(ui, pos2(header.min.x + 36.0, header.min.y + 54.0), 16.0, &conv, &t);
         let who = if conv.group {
             let names: Vec<String> = conv.others().map(|p| if p.name.is_empty() { p.number.clone() } else { p.name.clone() }).collect();
             names.join(", ")
         } else {
             conv.others().next().map(|p| if p.name.is_empty() || p.name == p.number { p.number.clone() } else { format!("{}  <{}>", p.name, p.number) }).unwrap_or_default()
         };
-        widgets::clipped(&p, pos2(header.min.x + 60.0, header.min.y + 47.0), header.width() - 200.0, &who, theme::semibold(12.5), t.text);
+        widgets::clipped(&p, pos2(header.min.x + 60.0, header.min.y + 47.0), header.width() - 200.0, &who, theme::semibold(12.5), header_ink);
         let kind = match conv.kind.as_str() {
             "rcs" => "Chat message (RCS)",
             _ => "Text message (SMS/MMS)",
         };
-        widgets::clipped(&p, pos2(header.min.x + 60.0, header.min.y + 63.0), header.width() - 200.0, kind, theme::regular(11.5), t.text_dim);
+        widgets::clipped(&p, pos2(header.min.x + 60.0, header.min.y + 63.0), header.width() - 200.0, kind, theme::regular(11.5), header_ink);
         if let Some(last) = self.threads.get(&id).and_then(|th| th.messages.last()) {
-            p.text(pos2(header.max.x - 18.0, header.min.y + 50.0), Align2::RIGHT_CENTER, timefmt::full(last.ts), theme::regular(11.5), t.text_dim);
+            p.text(pos2(header.max.x - 18.0, header.min.y + 50.0), Align2::RIGHT_CENTER, timefmt::full(last.ts), theme::regular(11.5), header_ink);
         }
         let actions = Rect::from_min_size(pos2(header.max.x - 130.0, header.min.y + 8.0), vec2(114.0, 26.0));
         let mut a = ui.new_child(egui::UiBuilder::new().max_rect(actions).layout(egui::Layout::right_to_left(egui::Align::Center)));
@@ -97,13 +97,12 @@ impl App {
         let composer_h = 64.0 + files_h;
         let composer = Rect::from_min_max(pos2(rect.min.x + 14.0, rect.max.y - composer_h - 10.0), pos2(rect.max.x - 14.0, rect.max.y - 12.0));
         let messages_rect = Rect::from_min_max(pos2(rect.min.x + 2.0, header.max.y + 2.0), pos2(rect.max.x - 2.0, composer.min.y - 6.0));
-        if !conv.group {
-            if let Some(c) = self.people.contact_for(conv.contact_number()) {
-                    if let Some(col) = contactcraft::color(&c.theme.background) { ui.painter().rect_filled(messages_rect, 0.0, col); }
-                    if let Some(tex) = self.people.background_for(conv.contact_number()) {
-                        let opacity = c.theme.background_opacity;
-                        ui.painter().image(tex.id(), messages_rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE.linear_multiply(opacity as f32 / 100.0));
-                    }
+        if let Some(th) = &header_theme {
+            if let Some(col) = contactcraft::color(&th.background) { ui.painter().rect_filled(messages_rect, 0.0, col); }
+            if let Some(tex) = self.people.background_for_conv(&conv) {
+                let uv = if th.background_fit == "stretch" { Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)) }
+                    else { crate::people::cover_uv(tex.size_vec2(), messages_rect.size()) };
+                ui.painter().image(tex.id(), messages_rect, uv, Color32::WHITE.linear_multiply(th.background_opacity as f32 / 100.0));
             }
         }
 
@@ -112,6 +111,12 @@ impl App {
 
         let mut cu = ui.new_child(egui::UiBuilder::new().max_rect(composer).layout(egui::Layout::top_down(egui::Align::Min)));
         self.composer(&mut cu, &conv);
+        if ui.input(|i| !i.raw.hovered_files.is_empty()) {
+            let drop = messages_rect.union(composer).shrink(5.0);
+            ui.painter().rect_filled(drop, 8.0, t.accent_soft.linear_multiply(0.65));
+            ui.painter().rect_stroke(drop, 8.0, Stroke::new(2.0, t.accent), StrokeKind::Inside);
+            ui.painter().text(drop.center(), Align2::CENTER_CENTER, "Drop files here to attach", theme::semibold(17.0), t.accent_soft_text);
+        }
     }
 
     fn empty_reading(&self, ui: &mut Ui, rect: Rect) {
@@ -150,6 +155,7 @@ impl App {
         let bubble_max = (width * 0.68).clamp(220.0, 560.0);
         let mut load_older = false;
         let mut to_open: Option<Media> = None;
+        let mut to_save: Option<Media> = None;
         let mut to_request: Vec<(String, String, String)> = Vec::new();
         let mut retry: Option<Message> = None;
         let mut delete: Option<String> = None;
@@ -201,7 +207,7 @@ impl App {
                 }
 
                 let show_avatar = !m.from_me && !messages.get(i + 1).is_some_and(|n| !n.from_me && n.participant_id == m.participant_id && (n.ts - m.ts) < 5 * 60 * 1000 && timefmt::same_day(n.ts, m.ts));
-                let resp = self.bubble(ui, conv, m, width, bubble_max, show_avatar, &mut to_open, &mut to_request);
+                let resp = self.bubble(ui, conv, m, width, bubble_max, show_avatar, &mut to_open, &mut to_save, &mut to_request);
                 let msg = m.clone();
                 resp.context_menu(|ui| {
                     if !msg.text.is_empty() && ui.button("Copy text").clicked() {
@@ -211,6 +217,13 @@ impl App {
                     if msg.failed && msg.local && ui.button("Try sending again").clicked() {
                         retry = Some(msg.clone());
                         ui.close();
+                    }
+                    for (index, media) in msg.media().iter().enumerate().filter(|(_, media)| !media.id.is_empty() || !media.thumb_id.is_empty()) {
+                        let name = if media.name.is_empty() { format!("attachment {}", index + 1) } else { media.name.clone() };
+                        if ui.button(format!("Save {name}…")).clicked() {
+                            to_save = Some(media.clone());
+                            ui.close();
+                        }
                     }
                     if !msg.local && ui.button("Delete for me").clicked() {
                         delete = Some(msg.id.clone());
@@ -251,7 +264,11 @@ impl App {
             self.request_media(&mid, &key, &mime);
         }
         if let Some(m) = to_open {
-            self.open_media(&m.id, &m.key, &m.mime);
+            let (mid, key) = if m.id.is_empty() { (&m.thumb_id, &m.thumb_key) } else { (&m.id, &m.key) };
+            self.open_media(mid, key, m.download_mime());
+        }
+        if let Some(m) = to_save {
+            self.save_media(&m, ui.ctx());
         }
         if load_older {
             self.load_older(&id);
@@ -261,7 +278,7 @@ impl App {
                 th.messages.retain(|x| x.tmp_id != m.tmp_id);
             }
             self.drafts.entry(id.clone()).or_default().text = m.text.clone();
-            self.send_draft(&id);
+            self.send_draft(&id, ui.ctx());
         }
         if let Some(mid) = delete {
             self.bridge.send(serde_json::json!({"cmd": "delete_message", "message_id": mid}));
@@ -278,6 +295,7 @@ impl App {
         bubble_max: f32,
         show_avatar: bool,
         to_open: &mut Option<Media>,
+        to_save: &mut Option<Media>,
         to_request: &mut Vec<(String, String, String)>,
     ) -> egui::Response {
         let t = self.t;
@@ -293,8 +311,7 @@ impl App {
         };
         let mut radius = 16.0;
         let mut font_size = 13.5;
-        if let Some(c) = contact {
-            let th = &c.theme;
+        if let Some(th) = self.people.theme_for(conv).or_else(|| contact.map(|c| &c.theme)) {
             fill = contactcraft::color(if m.from_me { &th.bubble_out } else { &th.bubble_in }).unwrap_or(fill);
             ink = contactcraft::color(if m.from_me { &th.bubble_out_text } else { &th.bubble_in_text }).unwrap_or(ink);
             if th.bubble_radius > 0 { radius = th.bubble_radius as f32; }
@@ -345,8 +362,11 @@ impl App {
         for (md, size) in m.media().iter().zip(media_sizes) {
             let r = Rect::from_min_size(pos2(if m.from_me { x + bubble_w - size.x } else { x }, y), size);
             let hit = ui.interact(r, egui::Id::unique(("media", &m.id, &md.id, &md.name)), Sense::click());
-            if md.is_image() && !md.id.is_empty() {
-                let (show_id, show_key) = if !md.thumb_id.is_empty() { (md.thumb_id.clone(), md.thumb_key.clone()) } else { (md.id.clone(), md.key.clone()) };
+            if md.is_image() && (!md.id.is_empty() || !md.thumb_id.is_empty()) {
+                let (show_id, show_key) = if !md.thumb_id.is_empty() && (!md.thumb_key.is_empty() || md.id.is_empty()) { (md.thumb_id.clone(), md.thumb_key.clone()) } else { (md.id.clone(), md.key.clone()) };
+                let (show_id, show_key) = if show_id != md.id && !md.id.is_empty() && matches!(self.media.get(&show_id), Some(MediaSlot::Failed(_))) {
+                    (md.id.clone(), md.key.clone())
+                } else { (show_id, show_key) };
                 match self.media.get(&show_id) {
                     Some(MediaSlot::Ready(tex)) => {
                         p.rect_filled(r, 12.0, t.pill_quiet);
@@ -359,8 +379,8 @@ impl App {
                         p.text(pos2(r.center().x, r.center().y + 26.0), Align2::CENTER_CENTER, "Click to open", theme::regular(11.0), t.text_dim);
                     }
                     other => {
-                        if other.is_none() && ui.is_rect_visible(r) {
-                            to_request.push((show_id, show_key, md.mime.clone()));
+                        if other.is_none() && ui.is_rect_visible(r) && !show_id.is_empty() {
+                            to_request.push((show_id, show_key, md.download_mime().into()));
                         }
                         p.rect_filled(r, 12.0, t.pill_quiet);
                         icons::paint(&p, Rect::from_center_size(r.center(), Vec2::splat(28.0)), Icon::Image, t.text_dim, t.accent);
@@ -369,7 +389,12 @@ impl App {
                 if hit.hovered() {
                     p.rect_stroke(r, 12.0, Stroke::new(1.0, t.border_strong), StrokeKind::Inside);
                 }
-                if hit.on_hover_text("Open the full picture").clicked() {
+                let save_r = Rect::from_min_size(pos2(r.max.x - 55.0, r.max.y - 27.0), vec2(49.0, 22.0));
+                let save_hit = ui.interact(save_r, egui::Id::unique(("save_media", &m.id, &md.id)), Sense::click());
+                p.rect_filled(save_r, 5.0, t.surface);
+                p.text(save_r.center(), Align2::CENTER_CENTER, "Save", theme::medium(11.0), t.text);
+                if save_hit.on_hover_text("Save attachment to a file").clicked() { *to_save = Some(md.clone()); }
+                else if hit.on_hover_text("Open the full picture").clicked() {
                     *to_open = Some(md.clone());
                 }
             } else {
@@ -378,10 +403,15 @@ impl App {
                 let icon = if md.mime.starts_with("image/") { Icon::Image } else { Icon::Attach };
                 icons::paint(&p, Rect::from_min_size(pos2(r.min.x + 10.0, r.center().y - 10.0), Vec2::splat(20.0)), icon, ink, t.accent);
                 let name = if md.name.is_empty() { kind_name(&md.mime).to_string() } else { md.name.clone() };
-                widgets::clipped(&p, pos2(r.min.x + 38.0, r.center().y - 7.0), r.width() - 46.0, &name, theme::medium(12.5), ink);
+                widgets::clipped(&p, pos2(r.min.x + 38.0, r.center().y - 7.0), r.width() - 100.0, &name, theme::medium(12.5), ink);
                 let sub = if md.mime == "local/file" { "Sending…".to_string() } else if md.size > 0 { format!("{} · Click to open", human_size(md.size)) } else { "Click to open".into() };
-                widgets::clipped(&p, pos2(r.min.x + 38.0, r.center().y + 9.0), r.width() - 46.0, &sub, theme::regular(11.0), if m.from_me { ink } else { t.text_dim });
-                if md.mime != "local/file" && !md.id.is_empty() && hit.clicked() {
+                widgets::clipped(&p, pos2(r.min.x + 38.0, r.center().y + 9.0), r.width() - 100.0, &sub, theme::regular(11.0), if m.from_me { ink } else { t.text_dim });
+                let save_r = Rect::from_min_size(pos2(r.max.x - 55.0, r.center().y - 11.0), vec2(49.0, 22.0));
+                let save_hit = ui.interact(save_r, egui::Id::unique(("save_file", &m.id, &md.id)), Sense::click());
+                p.rect_filled(save_r, 5.0, t.surface);
+                p.text(save_r.center(), Align2::CENTER_CENTER, "Save", theme::medium(11.0), t.text);
+                if save_hit.on_hover_text("Save attachment to a file").clicked() { *to_save = Some(md.clone()); }
+                else if md.mime != "local/file" && (!md.id.is_empty() || !md.thumb_id.is_empty()) && hit.clicked() {
                     *to_open = Some(md.clone());
                 }
             }
@@ -549,7 +579,7 @@ impl App {
             self.focus_composer = true;
         }
         if send {
-            self.send_draft(&id);
+            self.send_draft(&id, ui.ctx());
             self.focus_composer = true;
         }
     }

@@ -50,7 +50,7 @@ foreach ($ch in $escaped.ToCharArray()) {
     elseif ($code -gt 127) { [void]$sb.Append("\u$code?") }
     else { [void]$sb.Append($ch) }
 }
-$rtfPath = Join-Path $root '.tools\messagecraft-license.rtf'
+$rtfPath = Join-Path $env:TEMP 'messagecraft-license.rtf'
 "{\rtf1\ansi\deff0{\fonttbl{\f0 Segoe UI;}}\fs18 $($sb.ToString())}" | Set-Content -Path $rtfPath -Encoding ascii
 
 $msi = Join-Path $dist 'MessageCraft-windows-x64.msi'

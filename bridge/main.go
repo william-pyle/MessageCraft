@@ -134,7 +134,7 @@ func main() {
 		ctx:      ctx,
 		stop:     cancel,
 	}
-	emit("hello", map[string]any{"version": "1.2.0", "data_dir": *dataDir})
+	emit("hello", map[string]any{"version": "1.4.0", "data_dir": *dataDir})
 
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
@@ -227,6 +227,8 @@ func (b *bridge) handle(cmd map[string]any) {
 		go b.downloadMedia(str(cmd, "media_id"), str(cmd, "key"), str(cmd, "mime"))
 	case "delete_message":
 		go b.deleteMessage(str(cmd, "message_id"))
+	case "delete_history":
+		go b.deleteHistory(str(cmd, "conversation_id"))
 	case "typing":
 		go b.typing(str(cmd, "conversation_id"))
 	case "unpair":
@@ -954,6 +956,50 @@ func (b *bridge) deleteMessage(msgID string) {
 		return
 	}
 	emit("deleted", map[string]any{"message_id": msgID})
+}
+
+// Delete all phone-side messages in a conversation. Read every page before deleting so
+// changing the history cannot invalidate a pagination cursor partway through the job.
+func (b *bridge) deleteHistory(convID string) {
+	cli, err := b.cli()
+	if err != nil || convID == "" {
+		emit("history_deleted", map[string]any{"conversation_id": convID, "ok": false, "error": "The phone isn't connected."})
+		return
+	}
+	ids := make([]string, 0)
+	seen := make(map[string]bool)
+	var cursor *gmproto.Cursor
+	for {
+		ctx, cancel := context.WithTimeout(b.ctx, 45*time.Second)
+		resp, fetchErr := cli.FetchMessages(ctx, convID, 100, cursor)
+		cancel()
+		if fetchErr != nil {
+			emit("history_deleted", map[string]any{"conversation_id": convID, "ok": false, "error": friendlyError(fetchErr)})
+			return
+		}
+		for _, msg := range resp.GetMessages() {
+			id := msg.GetMessageID()
+			if id != "" && !seen[id] {
+				seen[id] = true
+				ids = append(ids, id)
+			}
+		}
+		next := resp.GetCursor()
+		if next == nil || next.GetLastItemID() == "" || cursor != nil && next.GetLastItemID() == cursor.GetLastItemID() {
+			break
+		}
+		cursor = next
+	}
+	for i, id := range ids {
+		ctx, cancel := context.WithTimeout(b.ctx, 30*time.Second)
+		_, deleteErr := cli.DeleteMessage(ctx, id)
+		cancel()
+		if deleteErr != nil {
+			emit("history_deleted", map[string]any{"conversation_id": convID, "ok": false, "deleted": i, "error": friendlyError(deleteErr)})
+			return
+		}
+	}
+	emit("history_deleted", map[string]any{"conversation_id": convID, "ok": true, "deleted": len(ids)})
 }
 
 func (b *bridge) downloadMedia(mediaID, keyB64, mimeType string) {

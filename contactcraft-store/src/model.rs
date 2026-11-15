@@ -201,6 +201,8 @@ pub struct ContactTheme {
     pub accent2: String,
     /// The banner: solid, gradient, diagonal, stripes, dots or glow.
     pub style: String,
+    /// A picture in the store's `backgrounds` folder, drawn over the banner pattern.
+    pub banner_image: String,
     /// Text on the banner. Empty: white or black, whichever reads better.
     pub text: String,
     /// circle, rounded or square.
@@ -252,6 +254,7 @@ impl Default for ContactTheme {
             accent: String::new(),
             accent2: String::new(),
             style: "gradient".into(),
+            banner_image: String::new(),
             text: String::new(),
             avatar_shape: "circle".into(),
             emoji: String::new(),
@@ -275,6 +278,52 @@ impl Default for ContactTheme {
             ringtone: String::new(),
             text_tone: String::new(),
         }
+    }
+}
+
+/// A member of a contact group. A phone number can exist without a contact record.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum GroupMember {
+    Contact { id: String },
+    Number { number: String },
+}
+
+/// A named group shared through the same store as contacts.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ContactGroup {
+    pub id: String,
+    pub name: String,
+    pub theme: ContactTheme,
+    pub members: Vec<GroupMember>,
+    pub created: String,
+    pub updated: String,
+    #[serde(flatten)]
+    pub extra: BTreeMap<String, Value>,
+}
+
+impl ContactGroup {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self { name: name.into(), ..Default::default() }
+    }
+
+    pub fn add_contact(&mut self, id: impl Into<String>) {
+        let id = id.into();
+        if !id.trim().is_empty() && !self.members.contains(&GroupMember::Contact { id: id.clone() }) {
+            self.members.push(GroupMember::Contact { id });
+        }
+    }
+
+    pub fn add_number(&mut self, number: impl Into<String>) {
+        let number = number.into().trim().to_string();
+        if !number.is_empty() && !self.members.iter().any(|m| matches!(m, GroupMember::Number { number: n } if n == &number)) {
+            self.members.push(GroupMember::Number { number });
+        }
+    }
+
+    pub fn remove_member(&mut self, member: &GroupMember) {
+        self.members.retain(|m| m != member);
     }
 }
 

@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::{Duration, Instant};
 
-pub use contactcraft_store::Contact;
+pub use contactcraft_store::{Contact, ContactGroup};
 use contactcraft_store::Store;
 
 /// What the worker sends back.
@@ -19,7 +19,7 @@ pub enum Reply {
     /// The store couldn't be opened (with why).
     Unavailable(String),
     /// Everything, after opening or after a change elsewhere. `dir` is the store's folder.
-    All { contacts: Vec<Paths>, exe: Option<PathBuf> },
+    All { contacts: Vec<Paths>, groups: Vec<GroupPaths>, exe: Option<PathBuf> },
     /// ContactCraft's editor window closed.
     Edited(EditOutcome),
 }
@@ -30,8 +30,19 @@ pub struct Paths {
     pub contact: Contact,
     pub photo: Option<PathBuf>,
     pub background: Option<PathBuf>,
+    pub banner: Option<PathBuf>,
     pub photo_image: Option<egui::ColorImage>,
     pub background_image: Option<egui::ColorImage>,
+    pub banner_image: Option<egui::ColorImage>,
+}
+
+#[derive(Clone)]
+pub struct GroupPaths {
+    pub group: ContactGroup,
+    pub background: Option<PathBuf>,
+    pub banner: Option<PathBuf>,
+    pub background_image: Option<egui::ColorImage>,
+    pub banner_image: Option<egui::ColorImage>,
 }
 
 pub enum EditOutcome {
@@ -60,20 +71,32 @@ fn decode(path: &PathBuf) -> Option<egui::ColorImage> {
     ))
 }
 
-fn load(store: &Store) -> Result<Vec<Paths>, String> {
-    Ok(store
+fn load(store: &Store) -> Result<(Vec<Paths>, Vec<GroupPaths>), String> {
+    let contacts = store
         .list()?
         .into_iter()
         .map(|c| {
             let photo = store.photo_path(&c);
             let background = store.background_path(&c);
+            let banner = store.banner_path(&c.theme);
             Paths {
                 photo_image: photo.as_ref().and_then(decode),
                 background_image: background.as_ref().and_then(decode),
-                photo, background, contact: c,
+                banner_image: banner.as_ref().and_then(decode),
+                photo, background, banner, contact: c,
             }
         })
-        .collect())
+        .collect();
+    let groups = store.list_groups()?.into_iter().map(|group| {
+        let background = store.theme_background_path(&group.theme);
+        let banner = store.banner_path(&group.theme);
+        GroupPaths {
+            background_image: background.as_ref().and_then(decode),
+            banner_image: banner.as_ref().and_then(decode),
+            group, background, banner,
+        }
+    }).collect();
+    Ok((contacts, groups))
 }
 
 impl Link {
@@ -104,7 +127,7 @@ impl Link {
                     if r != revision {
                         revision = r;
                         match load(s) {
-                            Ok(contacts) => send(Reply::All { contacts, exe: s.contactcraft_exe() }),
+                            Ok((contacts, groups)) => send(Reply::All { contacts, groups, exe: s.contactcraft_exe() }),
                             Err(e) => send(Reply::Unavailable(e)),
                         }
                     }
