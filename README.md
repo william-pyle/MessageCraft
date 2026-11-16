@@ -74,7 +74,7 @@ its local copy of your conversations. Your messages stay on your phone.
 
 ## ContactCraft contacts
 
-MessageCraft reads the shared ContactCraft database at `%APPDATA%\ContactCraft\contacts.db` (or `CONTACTCRAFT_DATA`) even when ContactCraft is closed. It matches phone numbers to names and photos, matches group members to group conversations, and uses their themes and banner pictures in chats. The People screen shows contacts and opens ContactCraft to create, edit, or change a theme. Right-click a conversation to add or edit its contact or contact group in ContactCraft 1.2.0 or later.
+MessageCraft reads the shared ContactCraft database at `%APPDATA%\ContactCraft\contacts.db` (or `CONTACTCRAFT_DATA`) even when ContactCraft is closed. It matches phone numbers to names and photos, matches group members to group conversations, and uses their themes and banner pictures in chats. The People screen shows contacts and opens ContactCraft dialogs to create, edit, or change a theme. Right-click a conversation to add or edit its contact or contact group; MessageCraft refreshes the shared store when the dialog saves.
 
 ## Where data is kept
 

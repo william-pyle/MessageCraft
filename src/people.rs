@@ -172,6 +172,7 @@ impl App {
                     if !id.is_empty() { self.people.selected = Some(id); }
                     self.contacts_load();
                 }
+                Reply::Edited(EditOutcome::SavedGroup) => self.contacts_load(),
                 Reply::Edited(EditOutcome::Cancelled) => {}
                 Reply::Edited(EditOutcome::Failed(e)) => self.notify(e, true),
             }
@@ -209,13 +210,11 @@ impl App {
         else if let Some(link) = &self.people.link { link.send(Request::Edit(args)); }
     }
     pub fn open_group_editor(&mut self, args: Vec<String>) {
-        let Some(exe) = self.people.exe.clone() else {
+        if self.people.exe.is_none() {
             self.notify("ContactCraft isn't installed on this computer.", true);
             return;
-        };
-        if let Err(e) = std::process::Command::new(exe).args(args).spawn() {
-            self.notify(format!("Couldn't open ContactCraft: {e}"), true);
         }
+        if let Some(link) = &self.people.link { link.send(Request::Edit(args)); }
     }
     pub fn people_list(&mut self, ui: &mut Ui) {
         let t = self.t;

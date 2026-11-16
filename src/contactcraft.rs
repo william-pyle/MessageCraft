@@ -47,6 +47,7 @@ pub struct GroupPaths {
 
 pub enum EditOutcome {
     Saved(String),
+    SavedGroup,
     Cancelled,
     Failed(String),
 }
@@ -163,15 +164,17 @@ impl Link {
 }
 
 fn run_editor(exe: &PathBuf, args: &[String]) -> EditOutcome {
+    let group = args.iter().any(|arg| arg == "--new-group" || arg == "--open-group");
     let out = std::process::Command::new(exe).args(args).stdin(std::process::Stdio::null()).output();
     match out {
         Err(e) => EditOutcome::Failed(format!("ContactCraft couldn't start: {e}")),
         Ok(out) => {
             let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
             match out.status.code() {
+                Some(0) if group => EditOutcome::SavedGroup,
                 Some(0) => EditOutcome::Saved(text.strip_prefix("saved ").unwrap_or("").trim().to_string()),
                 Some(1) => EditOutcome::Cancelled,
-                _ => EditOutcome::Failed(text.strip_prefix("error ").map(str::to_string).unwrap_or_else(|| "ContactCraft couldn't open that contact.".into())),
+                _ => EditOutcome::Failed(text.strip_prefix("error ").map(str::to_string).unwrap_or_else(|| format!("ContactCraft couldn't open that {}.", if group { "group" } else { "contact" }))),
             }
         }
     }

@@ -1,4 +1,4 @@
-## MessageCraft 1.4.0
+## MessageCraft 1.4.1
 
 Your Android phone's text messages on Windows, in the style of MailCraft.
 
@@ -8,6 +8,11 @@ Your Android phone's text messages on Windows, in the style of MailCraft.
   adds a Start Menu shortcut, and offers to launch MessageCraft when it finishes.
 - **MessageCraft-windows.zip**: the portable version. Unzip it and keep both programs in the same
   folder.
+
+### New in 1.4.1
+
+- New and Edit actions for ContactCraft contacts and groups open editor dialogs when used with
+  ContactCraft 1.2.3 or later. MessageCraft refreshes shared groups after a saved change.
 
 ### New in 1.4.0
 
