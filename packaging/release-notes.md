@@ -1,4 +1,4 @@
-## MessageCraft 1.4.1
+## MessageCraft 1.5.0
 
 Your Android phone's text messages on Windows, in the style of MailCraft.
 
@@ -8,6 +8,17 @@ Your Android phone's text messages on Windows, in the style of MailCraft.
   adds a Start Menu shortcut, and offers to launch MessageCraft when it finishes.
 - **MessageCraft-windows.zip**: the portable version. Unzip it and keep both programs in the same
   folder.
+
+### New in 1.5.0
+
+- The existing top toolbar now includes the app icon/system menu and minimize,
+  maximize/restore and close buttons, replacing Windows' separate title bar and control box.
+- Drag empty toolbar space, double-click to maximize/restore, or resize from all edges and
+  corners. Use Alt+Space for the native window menu and keyboard Move/Size; Alt+F4 closes normally.
+- Controls have accessible names and visible keyboard focus. Search, quick actions and account
+  access remain available, with compact layout at higher interface zoom.
+- Native sizing uses the monitor work area and DPI-scaled edge targets. Close preserves the
+  existing save-and-exit behavior. Pairing, messaging and ContactCraft storage are unchanged.
 
 ### New in 1.4.1
 

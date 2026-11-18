@@ -1,6 +1,6 @@
 [package]
 name = "messagecraft"
-version = "1.4.1"
+version = "1.5.0"
 edition = "2024"
 description = "MessageCraft: your phone's text messages on Windows, in the MailCraft style"
 license = "MIT OR Apache-2.0"
@@ -23,6 +23,10 @@ rfd = "0.17"
 wry = "0.57"
 tao = "0.37"
 contactcraft-store = { path = "contactcraft-store" }
+
+[target.'cfg(windows)'.dependencies]
+raw-window-handle = "0.6"
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging", "Win32_UI_Shell", "Win32_UI_HiDpi"] }
 
 [build-dependencies]
 winresource = "0.1"

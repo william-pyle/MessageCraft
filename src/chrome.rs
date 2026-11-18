@@ -81,7 +81,10 @@ impl App {
 
     fn title_bar(&mut self, ui: &mut Ui) {
         let t = self.t;
-        let rect = ui.max_rect();
+        let full_rect = ui.max_rect();
+        let custom = self.window.available();
+        let mut rect = full_rect;
+        if custom { rect.max.x -= crate::window_chrome::CONTROLS_WIDTH; }
         let p = ui.painter().clone();
         p.line_segment([pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)], Stroke::new(1.0, t.border.linear_multiply(0.6)));
 
@@ -89,6 +92,13 @@ impl App {
         let mark = Rect::from_min_size(pos2(rect.min.x + 12.0, rect.center().y - 12.0), Vec2::splat(24.0));
         p.rect_filled(mark, 6.0, t.accent);
         icons::paint(&p, mark.shrink(4.0), Icon::Chat, Color32::WHITE, Color32::WHITE);
+        let mut show_menu = false;
+        if custom {
+            let response = ui.interact(mark.expand(6.0), ui.scope_id().with("system_menu"), Sense::click());
+            response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, "Window system menu (Alt+Space)"));
+            if response.has_focus() { p.rect_stroke(mark.expand(4.0), 3.0, Stroke::new(2.0, t.accent), StrokeKind::Inside); }
+            show_menu = response.on_hover_text("Window system menu (Alt+Space)").clicked();
+        }
 
         // Quick access: sync and new conversation.
         let mut qat = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(pos2(mark.max.x + 10.0, rect.center().y - 14.0), vec2(80.0, 28.0))).layout(egui::Layout::left_to_right(egui::Align::Center)));
@@ -101,13 +111,15 @@ impl App {
         }
 
         // Search, centred like MailCraft's.
-        let w = (rect.width() * 0.36).clamp(260.0, 540.0);
-        let sr = Rect::from_center_size(pos2(rect.center().x, rect.center().y), vec2(w, SEARCH_BOX));
+        let sr = if custom { crate::window_chrome::search_rect(rect) } else {
+            Rect::from_center_size(pos2(rect.center().x, rect.center().y), vec2((rect.width() * 0.36).clamp(260.0, 540.0), SEARCH_BOX))
+        };
         let focused = ui.memory(|m| m.focused() == Some(egui::Id::unique("search_box")));
         p.rect_filled(sr, 6.0, t.input);
         p.rect_stroke(sr, 6.0, Stroke::new(1.0, if focused { t.accent } else { t.border_strong }), StrokeKind::Inside);
         icons::paint(&p, Rect::from_min_size(pos2(sr.min.x + 10.0, sr.center().y - 8.0), Vec2::splat(16.0)), Icon::Search, t.text_dim, t.text_dim);
-        let edit_rect = Rect::from_min_max(pos2(sr.min.x + 34.0, sr.min.y + 2.0), pos2(sr.max.x - if self.search.is_empty() { 120.0 } else { 34.0 }, sr.max.y - 2.0));
+        let show_scope = sr.width() >= 260.0;
+        let edit_rect = Rect::from_min_max(pos2(sr.min.x + 34.0, sr.min.y + 2.0), pos2(sr.max.x - if self.search.is_empty() { if show_scope { 120.0 } else { 6.0 } } else { 28.0 }, sr.max.y - 2.0));
         let mut child = ui.new_child(egui::UiBuilder::new().max_rect(edit_rect).layout(egui::Layout::left_to_right(egui::Align::Center)));
         let edit = egui::TextEdit::singleline(&mut self.search)
             .id(egui::Id::unique("search_box"))
@@ -121,9 +133,9 @@ impl App {
             resp.request_focus();
             self.focus_search = false;
         }
-        if self.search.is_empty() {
+        if self.search.is_empty() && show_scope {
             p.text(pos2(sr.max.x - 12.0, sr.center().y), Align2::RIGHT_CENTER, if self.people.open { "Contacts" } else { self.folder.label() }, theme::regular(12.0), t.text_dim);
-        } else {
+        } else if !self.search.is_empty() {
             let cr = Rect::from_center_size(pos2(sr.max.x - 17.0, sr.center().y), Vec2::splat(22.0));
             let mut c = ui.new_child(egui::UiBuilder::new().max_rect(cr));
             if icon_button(&mut c, &t, Icon::Close, 22.0, "Clear search").clicked() {
@@ -150,8 +162,33 @@ impl App {
             Conn::Error(_) | Conn::HelperMissing(_) => (t.icon_red, "Not connected", Icon::Warning),
             Conn::NoSession | Conn::Pairing => (t.text_disabled, "Pair phone", Icon::Phone),
         };
-        if widgets::chip(&mut r, &t, icon, text, Some(dot)).on_hover_text("Phone and pairing").clicked() {
+        // At high interface zoom the avatar retains account/phone access; the
+        // full connection state is also always available in the status bar.
+        if right.width() >= 180.0 && widgets::chip(&mut r, &t, icon, text, Some(dot)).on_hover_text("Phone and pairing").clicked() {
             self.backstage = Some(Backstage::Info);
+        }
+        if custom {
+            // Only empty toolbar regions drag: quick actions, search, account
+            // and caption buttons are never covered by a drag response.
+            for (index, drag_rect) in [
+                Rect::from_min_max(pos2(126.0, rect.top()), pos2(sr.left() - 4.0, rect.bottom())),
+                Rect::from_min_max(pos2(sr.right() + 4.0, rect.top()), pos2(r.min_rect().left() - 4.0, rect.bottom())),
+            ].into_iter().enumerate() {
+                if drag_rect.width() <= 0.0 { continue; }
+                let response = ui.interact(drag_rect, ui.scope_id().with(("window_drag", index)), Sense::CLICK | Sense::DRAG);
+                if response.double_clicked() {
+                    let maximized = ui.input(|i| i.viewport().maximized.unwrap_or(false));
+                    ui.ctx().send_viewport_cmd(egui::ViewportCommand::Maximized(!maximized));
+                } else if response.drag_started_by(egui::PointerButton::Primary) {
+                    ui.ctx().send_viewport_cmd(egui::ViewportCommand::StartDrag);
+                }
+                show_menu |= response.secondary_clicked();
+            }
+            crate::window_chrome::caption_buttons(ui, full_rect, &t);
+            show_menu |= ui.input_mut(|i| i.consume_key(egui::Modifiers::ALT, egui::Key::Space));
+            if show_menu {
+                if let Err(error) = self.window.system_menu(ui.ctx().pixels_per_point()) { self.notify(error, true); }
+            }
         }
     }
 

@@ -32,6 +32,18 @@ jobs:
           wix extension add -g WixToolset.UI.wixext/5.0.2
           wix extension add -g WixToolset.Util.wixext/5.0.2
 
+      - name: Test Rust application and shared store
+        shell: pwsh
+        run: |
+          cargo test --locked
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --manifest-path contactcraft-store/Cargo.toml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Test bridge
+        working-directory: bridge
+        run: go test ./...
+
       - name: Build MessageCraft
         shell: pwsh
         run: ./build.ps1

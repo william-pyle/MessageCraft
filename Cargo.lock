@@ -2439,7 +2439,7 @@ dependencies = [
 
 [[package]]
 name = "messagecraft"
-version = "1.4.1"
+version = "1.5.0"
 dependencies = [
  "chrono",
  "contactcraft-store",
@@ -2447,10 +2447,12 @@ dependencies = [
  "egui",
  "image",
  "qrcode",
+ "raw-window-handle",
  "rfd",
  "serde",
  "serde_json",
  "tao",
+ "windows-sys 0.61.2",
  "winresource",
  "wry",
 ]

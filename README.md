@@ -29,6 +29,14 @@ MessageCraft is an independent project. It is not made by, endorsed by or affili
 - **The MailCraft look:** title bar with search, File / Home / View / Help ribbon, module rail,
   folder pane, three-line conversation rows and a status bar. Light, dark or follow-Windows themes,
   interface zoom, and tighter spacing.
+- **Integrated Windows controls:** the existing top toolbar replaces the native title bar.
+  Drag empty toolbar space to move; double-click it to maximize or restore. Resize from any
+  edge or corner. Click the app icon, right-click empty toolbar space, or press **Alt+Space**
+  for the Windows system menu (including keyboard Move and Size). Minimize, maximize/restore
+  and close are at the top right, with Tab focus, Enter/Space activation and accessible names.
+  **Alt+F4** closes normally, saving settings and cached messages. Maximizing uses the current
+  monitor's work area; edge hit targets follow Windows DPI. At narrow widths or high interface
+  zoom, phone status remains in the status bar and account access stays on the avatar.
 - **ContactCraft contacts and groups:** use shared names, pictures, themes and banner images in
   conversations. Right-click a conversation to add or edit its contact or group.
 - **Delete:** right-click a message to delete it, or right-click a conversation to delete its
@@ -166,6 +174,13 @@ git push origin v1.0.0
 
 The workflow then creates a GitHub Release with the installer (`MessageCraft-windows-x64.msi`) and
 the portable zip attached.
+
+Before tagging, finish source/version/release notes, run `cargo test --locked`,
+`cargo test --manifest-path contactcraft-store/Cargo.toml`, `go test ./...` in `bridge/`, and
+`build.ps1`, then verify a successful main-branch CI run on that exact commit. The tag workflow
+builds and publishes both packages. Verify the public release assets and their SHA-256 digests.
+See [the window verification guide](packaging/window-verification.md) for isolated native checks
+and the distinction between automated window checks and physical desktop interaction.
 
 ## Troubleshooting
 

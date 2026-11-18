@@ -18,6 +18,9 @@ mod theme;
 mod timefmt;
 mod update;
 mod widgets;
+mod window_chrome;
+#[cfg(all(windows, debug_assertions))]
+mod window_smoke;
 
 /// The window icon: MailCraft's blue tile with a white speech bubble, drawn here.
 fn app_icon() -> egui::IconData {
@@ -67,9 +70,17 @@ fn main() -> eframe::Result {
             .with_app_id("MessageCraft")
             .with_inner_size([1440.0, 920.0])
             .with_min_inner_size([900.0, 560.0])
+            .with_decorations(!cfg!(windows))
+            .with_resizable(true)
             .with_drag_and_drop(true)
             .with_icon(app_icon()),
         ..Default::default()
     };
-    eframe::run_native("MessageCraft", options, Box::new(|cc| Ok(Box::new(app::App::new(cc)))))
+    eframe::run_native("MessageCraft", options, Box::new(|cc| {
+        let app = app::App::new(cc);
+        #[cfg(all(windows, debug_assertions))]
+        return Ok(window_smoke::wrap(cc, app));
+        #[cfg(not(all(windows, debug_assertions)))]
+        Ok(Box::new(app))
+    }))
 }

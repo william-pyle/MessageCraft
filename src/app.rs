@@ -173,6 +173,7 @@ pub struct App {
     pub t: Tokens,
     pub sent_count: u64,
     pub demo: bool,
+    pub window: crate::window_chrome::NativeWindow,
     pub people: crate::people::People,
     pub update_release: Option<crate::update::Release>,
     pub(crate) update_rx: Option<Receiver<crate::update::Event>>,
@@ -240,6 +241,7 @@ impl App {
             t: Tokens::dark(),
             sent_count: 0,
             demo: false,
+            window: crate::window_chrome::NativeWindow::new(cc),
             people: crate::people::People::default(),
             update_release: None,
             update_rx: None,
@@ -248,6 +250,7 @@ impl App {
             update_check_manual: false,
             bridge: Bridge::new(),
         };
+        if let Some(error) = app.window.error.take() { app.notify(error, true); }
         let args: Vec<String> = std::env::args().collect();
         if args.iter().any(|a| a == "--demo") {
             // Sample conversations, no phone and nothing saved: for trying the window out.
