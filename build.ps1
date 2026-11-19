@@ -1,8 +1,9 @@
-# Builds MessageCraft into dist\: MessageCraft.exe (the window, Rust) and messagecraft-bridge.exe
+# Builds MessageSolutions into dist\: MessageSolutions.exe (the window, Rust) and messagesolutions-bridge.exe
 # (the connection helper, Go). Go is used from .tools\go when it isn't installed system-wide.
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 Set-Location $root
+$version = (Select-String -Path (Join-Path $root 'Cargo.toml') -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1).Matches[0].Groups[1].Value
 
 $go = Get-Command go -ErrorAction SilentlyContinue
 if ($go) { $goExe = $go.Source } else {
@@ -19,21 +20,21 @@ New-Item -ItemType Directory -Force $dist | Out-Null
 
 Write-Host 'Building the connection helper...'
 Push-Location (Join-Path $root 'bridge')
-& $goExe build -trimpath -ldflags '-s -w -H windowsgui' -o (Join-Path $dist 'messagecraft-bridge.exe') .
+& $goExe build -trimpath -ldflags "-s -w -H windowsgui -X main.version=$version" -o (Join-Path $dist 'messagesolutions-bridge.exe') .
 if ($LASTEXITCODE -ne 0) { Pop-Location; throw 'The connection helper failed to build.' }
 Pop-Location
 
-Write-Host 'Building the MessageCraft window...'
-cargo build --release
-if ($LASTEXITCODE -ne 0) { throw 'MessageCraft failed to build.' }
-Copy-Item (Join-Path $root 'target\release\MessageCraft.exe') $dist -Force
+Write-Host 'Building the MessageSolutions window...'
+cargo build --release --locked
+if ($LASTEXITCODE -ne 0) { throw 'MessageSolutions failed to build.' }
+Copy-Item (Join-Path $root 'target\release\MessageSolutions.exe') $dist -Force
 Copy-Item (Join-Path $root 'NOTICE.md') $dist -Force
 Copy-Item (Join-Path $root 'update.ps1') $dist -Force
 
 Write-Host 'Packing the download and its page...'
-$zip = Join-Path $dist 'MessageCraft-windows.zip'
+$zip = Join-Path $dist 'MessageSolutions-windows.zip'
 if (Test-Path $zip) { Remove-Item $zip -Force }
-Compress-Archive -Path (Join-Path $dist 'MessageCraft.exe'), (Join-Path $dist 'messagecraft-bridge.exe'), (Join-Path $dist 'NOTICE.md'), (Join-Path $dist 'update.ps1') -DestinationPath $zip
+Compress-Archive -Path (Join-Path $dist 'MessageSolutions.exe'), (Join-Path $dist 'messagesolutions-bridge.exe'), (Join-Path $dist 'NOTICE.md'), (Join-Path $dist 'update.ps1') -DestinationPath $zip
 Copy-Item (Join-Path $root 'web\*') $dist -Recurse -Force
 
 # The installer (MSI), when WiX is available on PATH or in .tools\wix.
@@ -43,4 +44,4 @@ if ((Get-Command wix -ErrorAction SilentlyContinue) -or (Test-Path (Join-Path $r
 } else {
     Write-Warning 'WiX is not installed, so no installer was built (see packaging\windows\package.ps1).'
 }
-Write-Host "Done: $dist\MessageCraft.exe and $dist\index.html"
+Write-Host "Done: $dist\MessageSolutions.exe and $dist\index.html"

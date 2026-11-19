@@ -1,4 +1,4 @@
-//! The MessageCraft window: its state, the events from the phone, and the frame loop.
+//! The MessageSolutions window: its state, the events from the phone, and the frame loop.
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -190,10 +190,10 @@ impl App {
         crate::theme::install_fonts(&cc.egui_ctx);
         crate::theme::apply(&cc.egui_ctx);
         let mut bridge = Bridge::new();
-        let settings: Settings = std::fs::read(bridge.data_dir.join(SETTINGS_FILE))
+        let settings: Settings = if std::env::args().any(|a| a == "--demo") { Settings::default() } else { std::fs::read(bridge.data_dir.join(SETTINGS_FILE))
             .ok()
             .and_then(|b| serde_json::from_slice(&b).ok())
-            .unwrap_or_default();
+            .unwrap_or_default() };
         let (decoded_tx, decoded_rx) = channel();
         let (save_tx, save_rx) = channel();
         let mut app = App {
@@ -267,8 +267,8 @@ impl App {
         }
         app.load_cache();
         app.apply_settings(&cc.egui_ctx);
-        // ContactCraft's shared store is available even when its window is closed.
-        app.people.link = Some(crate::contactcraft::Link::start(cc.egui_ctx.clone()));
+        // ContactSolutions's shared store is available even when its window is closed.
+        app.people.link = Some(crate::contactsolutions::Link::start(cc.egui_ctx.clone()));
         app.contacts_load();
         bridge.start(&cc.egui_ctx);
         bridge.send(json!({"cmd": "connect"}));
@@ -313,7 +313,7 @@ impl App {
                 self.update_prompt = true;
             }
             crate::update::Event::Current => {
-                if self.update_check_manual { self.notify("MessageCraft is up to date.", false); }
+                if self.update_check_manual { self.notify("MessageSolutions is up to date.", false); }
             }
             crate::update::Event::Downloaded(path) => {
                 self.update_downloading = false;
@@ -453,7 +453,7 @@ impl App {
             return;
         }
         if !matches!(self.conn, Conn::Connected) {
-            self.notify("MessageCraft isn't connected to your phone right now. Your message is still in the box.", true);
+            self.notify("MessageSolutions isn't connected to your phone right now. Your message is still in the box.", true);
             return;
         }
         self.sent_count += 1;
@@ -1026,7 +1026,7 @@ impl App {
             "bridge_exit" => {
                 if self.bridge.running {
                     self.bridge.running = false;
-                    self.conn = Conn::HelperMissing("MessageCraft's connection helper stopped unexpectedly.".into());
+                    self.conn = Conn::HelperMissing("MessageSolutions's connection helper stopped unexpectedly.".into());
                 }
             }
             _ => {}
@@ -1163,10 +1163,10 @@ impl App {
 
     fn window_title(&mut self, ctx: &egui::Context) {
         let unread = self.unread_count(Folder::Inbox);
-        let mut title = format!("{} - MessageCraft", self.folder.label());
+        let mut title = format!("{} - MessageSolutions", self.folder.label());
         if let Some(id) = &self.selected {
             if let Some(c) = self.convs.get(id) {
-                title = format!("{} - MessageCraft", self.people.title_for(c));
+                title = format!("{} - MessageSolutions", self.people.title_for(c));
             }
         }
         if unread > 0 {

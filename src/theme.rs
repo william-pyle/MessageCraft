@@ -1,4 +1,4 @@
-//! MessageCraft's look: the MailCraft palette, type scale and widget style.
+//! MessageSolutions's look: the MailCraft palette, type scale and widget style.
 //!
 //! The colour values, type sizes and widget metrics follow MailCraft's own theme
 //! (github.com/UCS-Care-Group/mailcraft, crates/ui-egui/src/theme.rs, MIT OR Apache-2.0), so the

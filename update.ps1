@@ -9,9 +9,9 @@ $ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 if ($Action -eq 'check') {
-    $headers = @{ 'User-Agent' = 'MessageCraft-Updater'; 'Accept' = 'application/vnd.github+json' }
-    $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/william-pyle/MessageCraft/releases/latest' -Headers $headers -TimeoutSec 20
-    $asset = $release.assets | Where-Object { $_.name -eq 'MessageCraft-windows-x64.msi' } | Select-Object -First 1
+    $headers = @{ 'User-Agent' = 'MessageSolutions-Updater'; 'Accept' = 'application/vnd.github+json' }
+    $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/william-pyle/MessageSolutions/releases/latest' -Headers $headers -TimeoutSec 20
+    $asset = $release.assets | Where-Object { $_.name -eq 'MessageSolutions-windows-x64.msi' } | Select-Object -First 1
     if (-not $asset -or -not $release.tag_name) { throw 'The latest release has no Windows installer.' }
     [pscustomobject]@{
         version = [string]$release.tag_name
@@ -21,13 +21,13 @@ if ($Action -eq 'check') {
     exit 0
 }
 
-if ($Url -notmatch '^https://github\.com/william-pyle/MessageCraft/releases/download/[^/]+/MessageCraft-windows-x64\.msi$') {
+if ($Url -notmatch '^https://github\.com/william-pyle/MessageSolutions/releases/download/[^/]+/MessageSolutions-windows-x64\.msi$') {
     throw 'Unexpected update download address.'
 }
 if ($Version -notmatch '^v?[0-9]+\.[0-9]+\.[0-9]+$') { throw 'Unexpected release version.' }
-$folder = Join-Path $env:LOCALAPPDATA 'MessageCraft\Updates'
+$folder = Join-Path $env:LOCALAPPDATA 'MessageSolutions\Updates'
 New-Item -ItemType Directory -Force -Path $folder | Out-Null
-$destination = Join-Path $folder ("MessageCraft-$Version.msi")
+$destination = Join-Path $folder ("MessageSolutions-$Version.msi")
 $temporary = "$destination.download"
 try {
     Invoke-WebRequest -Uri $Url -OutFile $temporary -UseBasicParsing -TimeoutSec 120

@@ -325,7 +325,7 @@ impl App {
                 if ribbon_button(ui, &t, Icon::Copy, "Open Data Folder", false, true, false).clicked() {
                     crate::app::open_path(&self.bridge.data_dir);
                 }
-                if ribbon_button(ui, &t, Icon::Info, "About MessageCraft", false, true, false).clicked() {
+                if ribbon_button(ui, &t, Icon::Info, "About MessageSolutions", false, true, false).clicked() {
                     self.backstage = Some(Backstage::About);
                 }
             }
@@ -345,7 +345,7 @@ impl App {
     fn rail(&mut self, ui: &mut Ui) {
         let t = self.t;
         let rect = ui.max_rect();
-        let items = [(Icon::Chat, "Messages", true), (Icon::People, "People (ContactCraft contacts)", false), (Icon::Gear, "Options", false)];
+        let items = [(Icon::Chat, "Messages", true), (Icon::People, "People (ContactSolutions contacts)", false), (Icon::Gear, "Options", false)];
         let mut y = rect.min.y + 4.0 + TAB_H;
         for (i, (icon, tip, _)) in items.iter().enumerate() {
             let r = Rect::from_min_size(pos2(rect.min.x, y), vec2(RAIL_W, 48.0));

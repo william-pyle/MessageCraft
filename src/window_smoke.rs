@@ -21,7 +21,7 @@ struct SmokeApp {
 }
 
 pub fn wrap(cc: &eframe::CreationContext<'_>, app: crate::app::App) -> Box<dyn eframe::App> {
-    let Some(root) = std::env::var_os("MESSAGECRAFT_WINDOW_SMOKE") else {
+    let Some(root) = std::env::var_os("MESSAGESOLUTIONS_WINDOW_SMOKE") else {
         return Box::new(app);
     };
     let root = PathBuf::from(root);
@@ -30,6 +30,7 @@ pub fn wrap(cc: &eframe::CreationContext<'_>, app: crate::app::App) -> Box<dyn e
         "Smoke tests require --demo and isolated APPDATA=<evidence>/data"
     );
     std::fs::create_dir_all(&root).unwrap();
+    std::fs::create_dir_all(root.join("data/MessageSolutions")).unwrap();
     let input = Arc::new(Mutex::new(Vec::new()));
     let queued = input.clone();
     let ctx = cc.egui_ctx.clone();
@@ -229,7 +230,7 @@ impl eframe::App for SmokeApp {
         // records at shutdown. No bridge was started and no real data loaded.
         self.app.demo = false;
         self.app.on_exit();
-        let dir = self.root.join("data/MessageCraft");
+        let dir = self.root.join("data/MessageSolutions");
         let settings: crate::model::Settings =
             serde_json::from_slice(&std::fs::read(dir.join("ui.json")).unwrap()).unwrap();
         let cache: serde_json::Value =

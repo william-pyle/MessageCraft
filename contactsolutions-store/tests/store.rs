@@ -1,6 +1,6 @@
 //! The store, the importers and the exporters, checked end to end in a temporary folder.
 
-use contactcraft_store::{Contact, ContactGroup, ContactTheme, Email, GroupMember, Labeled, Store, csv, vcard};
+use contactsolutions_store::{Contact, ContactGroup, ContactTheme, Email, GroupMember, Labeled, Store, csv, vcard};
 
 #[test]
 fn groups_share_mixed_members_and_survive_contact_deletion() {
@@ -56,7 +56,7 @@ fn opening_a_version_one_store_adds_groups() {
 }
 
 fn temp_store(name: &str) -> (Store, std::path::PathBuf) {
-    let dir = std::env::temp_dir().join(format!("contactcraft-test-{name}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("contactsolutions-test-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     (Store::open(&dir).unwrap(), dir)
 }
@@ -152,7 +152,7 @@ fn vcard_round_trip() {
     c.name.given = "Mira".into();
     c.name.family = "Chen".into();
     c.phones.push(Labeled::new("mobile", "+1 555 018 2211"));
-    c.addresses.push(contactcraft_store::Address { label: "home".into(), street: "5 Elm; Apt 2".into(), city: "Austin".into(), ..Default::default() });
+    c.addresses.push(contactsolutions_store::Address { label: "home".into(), street: "5 Elm; Apt 2".into(), city: "Austin".into(), ..Default::default() });
     c.birthday = "--09-30".into();
     c.theme.accent = "#8E2C7A".into();
     c.theme.background_opacity = 40;

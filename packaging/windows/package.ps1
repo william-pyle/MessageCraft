@@ -1,11 +1,11 @@
 <#
 .SYNOPSIS
-  Build MessageCraft's Windows installer (MSI) from the programs in dist\.
+  Build MessageSolutions's Windows installer (MSI) from the programs in dist\.
 
 .DESCRIPTION
   Run build.ps1 first (it calls this script itself when WiX is available). Produces
-  dist\MessageCraft-windows-x64.msi: a per-machine installer into Program Files with a Start Menu
-  shortcut, like MailCraft's.
+  dist\MessageSolutions-windows-x64.msi: a per-machine installer into Program Files with a Start Menu
+  shortcut, like MailSolutions's.
 
   Needs WiX v5 with its UI and Util extensions. Either on PATH:
     dotnet tool install --global wix --version 5.0.2
@@ -38,7 +38,7 @@ foreach ($ext in 'WixToolset.UI.wixext/5.0.2', 'WixToolset.Util.wixext/5.0.2') {
     if (-not $have) { & $wixExe extension add -g $ext | Out-Null }
 }
 
-# The licence page: what MessageCraft is made of and the terms of each part, from NOTICE.md.
+# The licence page: what MessageSolutions is made of and the terms of each part, from NOTICE.md.
 $notice = Get-Content (Join-Path $root 'NOTICE.md') -Raw
 $escaped = $notice -replace '\\', '\\' -replace '\{', '\{' -replace '\}', '\}'
 $escaped = ($escaped -replace '(?m)^#+\s*', '' -replace '\*\*', '' -replace '`', '')
@@ -50,10 +50,10 @@ foreach ($ch in $escaped.ToCharArray()) {
     elseif ($code -gt 127) { [void]$sb.Append("\u$code?") }
     else { [void]$sb.Append($ch) }
 }
-$rtfPath = Join-Path $env:TEMP 'messagecraft-license.rtf'
+$rtfPath = Join-Path $env:TEMP 'messagesolutions-license.rtf'
 "{\rtf1\ansi\deff0{\fonttbl{\f0 Segoe UI;}}\fs18 $($sb.ToString())}" | Set-Content -Path $rtfPath -Encoding ascii
 
-$msi = Join-Path $dist 'MessageCraft-windows-x64.msi'
+$msi = Join-Path $dist 'MessageSolutions-windows-x64.msi'
 if (Test-Path $msi) { Remove-Item $msi -Force }
 $uiExtension = 'WixToolset.UI.wixext'
 $utilExtension = 'WixToolset.Util.wixext'
@@ -61,11 +61,11 @@ $uiCached = Join-Path $env:USERPROFILE '.wix\extensions\WixToolset.UI.wixext\5.0
 $utilCached = Join-Path $env:USERPROFILE '.wix\extensions\WixToolset.Util.wixext\5.0.2\wixext5\WixToolset.Util.wixext.dll'
 if (Test-Path $uiCached) { $uiExtension = $uiCached }
 if (Test-Path $utilCached) { $utilExtension = $utilCached }
-& $wixExe build (Join-Path $here 'messagecraft.wxs') -arch x64 `
+& $wixExe build (Join-Path $here 'messagesolutions.wxs') -arch x64 `
     -ext $uiExtension -ext $utilExtension `
     -d "Version=$msiVersion" -d "BinDir=$dist" `
-    -d "IconPath=$(Join-Path $root 'assets\messagecraft.ico')" -d "LicenseRtf=$rtfPath" `
+    -d "IconPath=$(Join-Path $root 'assets\messagesolutions.ico')" -d "LicenseRtf=$rtfPath" `
     -o $msi
 if ($LASTEXITCODE -ne 0) { throw 'The installer failed to build.' }
-Remove-Item (Join-Path $dist 'MessageCraft-windows-x64.wixpdb') -ErrorAction SilentlyContinue
+Remove-Item (Join-Path $dist 'MessageSolutions-windows-x64.wixpdb') -ErrorAction SilentlyContinue
 Write-Host "Installer: $msi"

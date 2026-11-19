@@ -1,4 +1,4 @@
-//! File view (MailCraft's "backstage"): the phone and pairing, options, about; and the dialogs.
+//! File view (MailSolutions's "backstage"): the phone and pairing, options, about; and the dialogs.
 
 use egui::{Align2, Frame, Margin, Rect, Sense, Stroke, StrokeKind, Ui, Vec2, pos2, vec2};
 
@@ -117,8 +117,8 @@ impl App {
 
         Self::section(ui, &t, "Pairing");
         for line in [
-            "MessageCraft works like Google Messages for web: your phone does the sending, and this computer shows your conversations.",
-            "To pair: choose Sign in with Google and sign in with the Google account your phone's Google Messages uses, then tap the emoji MessageCraft shows on your phone. (Older phones whose Device pairing screen has a QR code scanner can pair with a QR code instead.)",
+            "MessageSolutions works like Google Messages for web: your phone does the sending, and this computer shows your conversations.",
+            "To pair: choose Sign in with Google and sign in with the Google account your phone's Google Messages uses, then tap the emoji MessageSolutions shows on your phone. (Older phones whose Device pairing screen has a QR code scanner can pair with a QR code instead.)",
             "Keep your phone on and connected to the internet. If you open Google Messages for web in a browser, it takes over; use Reconnect here to switch back.",
             "Unpairing removes this computer from your phone's paired devices and deletes the copy of your conversations kept here.",
         ] {
@@ -180,7 +180,7 @@ impl App {
             ui.painter().rect_filled(r, 10.0, t.accent);
             icons::paint(ui.painter(), r.shrink(9.0), Icon::Chat, egui::Color32::WHITE, egui::Color32::WHITE);
             ui.vertical(|ui| {
-                ui.label(egui::RichText::new("MessageCraft").font(theme::semibold(24.0)).color(t.text));
+                ui.label(egui::RichText::new("MessageSolutions").font(theme::semibold(24.0)).color(t.text));
                 ui.label(egui::RichText::new(format!("Version {}", env!("CARGO_PKG_VERSION"))).font(theme::regular(13.0)).color(t.text_dim));
             });
         });
@@ -196,11 +196,11 @@ impl App {
             self.notify("Checking for updates...", false);
         }
         Self::section(ui, &t, "About");
-        ui.add(egui::Label::new(egui::RichText::new("Your phone's text messages (SMS, MMS and RCS chats) on Windows, in the style of MailCraft. MessageCraft is not made by or affiliated with Google.").font(theme::regular(13.0)).color(t.text_dim)).wrap());
+        ui.add(egui::Label::new(egui::RichText::new("Your phone's text messages (SMS, MMS and RCS chats) on Windows, in the style of MailSolutions. MessageSolutions is not made by or affiliated with Google.").font(theme::regular(13.0)).color(t.text_dim)).wrap());
         Self::section(ui, &t, "Built with");
         for line in [
             "libgm from mautrix-gmessages (AGPL-3.0): talks to Google Messages for web.",
-            "MailCraft's palette, type scale and layout (MIT or Apache-2.0).",
+            "Original MailCraft palette, type scale and layout (MIT or Apache-2.0).",
             "egui and eframe (MIT or Apache-2.0), the Inter typeface (SIL Open Font License).",
         ] {
             ui.add(egui::Label::new(egui::RichText::new(format!("• {line}")).font(theme::regular(13.0)).color(t.text_dim)).wrap());
@@ -217,7 +217,7 @@ impl App {
             let release = self.update_release.as_ref().map(|r| r.version.clone()).unwrap_or_default();
             egui::Modal::new(egui::Id::unique("app_update")).frame(dialog_frame(&t)).show(ctx, |ui| {
                 ui.set_width(400.0);
-                ui.label(egui::RichText::new("MessageCraft update available").font(theme::semibold(17.0)).color(t.text));
+                ui.label(egui::RichText::new("MessageSolutions update available").font(theme::semibold(17.0)).color(t.text));
                 ui.add(egui::Label::new(egui::RichText::new(format!("Version {release} is ready. Install it now? Your pairing, conversations and settings will be kept.")).font(theme::regular(13.0)).color(t.text_dim)).wrap());
                 ui.add_space(10.0);
                 ui.horizontal(|ui| {
@@ -303,7 +303,7 @@ impl App {
                 ui.set_width(420.0);
                 ui.label(egui::RichText::new("Unpair this computer?").font(theme::semibold(17.0)).color(t.text));
                 ui.add_space(4.0);
-                ui.add(egui::Label::new(egui::RichText::new("MessageCraft will stop showing your messages, your phone will forget this computer, and the copy of your conversations kept here will be deleted. Your messages stay on your phone.").font(theme::regular(13.0)).color(t.text_dim)).wrap());
+                ui.add(egui::Label::new(egui::RichText::new("MessageSolutions will stop showing your messages, your phone will forget this computer, and the copy of your conversations kept here will be deleted. Your messages stay on your phone.").font(theme::regular(13.0)).color(t.text_dim)).wrap());
                 ui.add_space(10.0);
                 ui.horizontal(|ui| {
                     if widgets::primary_button(ui, &t, "Unpair", true).clicked() {

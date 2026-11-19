@@ -1,13 +1,13 @@
 [package]
-name = "contactcraft-store"
-version = "1.2.0"
+name = "contactsolutions-store"
+version = "1.3.0"
 edition = "2024"
-description = "ContactCraft's shared store for contacts, groups and themes"
+description = "ContactSolutions's shared store for contacts, groups and themes"
 license = "MIT"
 publish = false
 
 [lib]
-name = "contactcraft_store"
+name = "contactsolutions_store"
 path = "src/lib.rs"
 
 [dependencies]

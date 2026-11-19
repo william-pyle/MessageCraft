@@ -1,4 +1,4 @@
-//! Sample conversations for trying the window without a phone (`MessageCraft.exe --demo`).
+//! Sample conversations for trying the window without a phone (`MessageSolutions.exe --demo`).
 //! Made-up people and numbers.
 
 use crate::app::{App, Conn, Thread};

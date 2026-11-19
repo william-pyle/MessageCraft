@@ -257,19 +257,19 @@ impl App {
                 resp.context_menu(|ui| {
                     if c.group {
                         if let Some(group) = self.people.group_record_for(c) {
-                            if ui.button("Edit contact group in ContactCraft").clicked() {
+                            if ui.button("Edit contact group in ContactSolutions").clicked() {
                                 action = Some(RowAction::Group(vec!["--open-group".into(), group.id.clone()])); ui.close();
                             }
-                        } else if ui.button("Add contact group in ContactCraft").clicked() {
+                        } else if ui.button("Add contact group in ContactSolutions").clicked() {
                             let mut args = vec!["--new-group".into(), "--group-name".into(), c.title()];
                             for p in c.others().filter(|p| !p.number.is_empty()) { args.push("--group-number".into()); args.push(p.number.clone()); }
                             action = Some(RowAction::Group(args)); ui.close();
                         }
                     } else if let Some(contact) = self.people.contact_for(c.contact_number()) {
-                        if ui.button("Edit contact in ContactCraft").clicked() {
+                        if ui.button("Edit contact in ContactSolutions").clicked() {
                             action = Some(RowAction::Contact(vec!["--edit-contact".into(), contact.id.clone()])); ui.close();
                         }
-                    } else if !c.contact_number().is_empty() && ui.button("Add contact in ContactCraft").clicked() {
+                    } else if !c.contact_number().is_empty() && ui.button("Add contact in ContactSolutions").clicked() {
                         action = Some(RowAction::Contact(vec!["--edit-phone".into(), c.contact_number().into()])); ui.close();
                     }
                     ui.separator();

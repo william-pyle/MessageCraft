@@ -1,4 +1,4 @@
-//! The connection helper: `messagecraft-bridge.exe` beside MessageCraft.exe does the talking to
+//! The connection helper: `messagesolutions-bridge.exe` beside MessageSolutions.exe does the talking to
 //! Google Messages for web. This side starts it, sends it commands and reads its events, one JSON
 //! object per line each way.
 
@@ -20,16 +20,15 @@ pub struct Bridge {
 }
 
 pub fn data_dir() -> PathBuf {
-    let base = std::env::var_os("APPDATA").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
-    let dir = base.join("MessageCraft");
-    let _ = std::fs::create_dir_all(&dir);
+    let base = std::env::var_os("APPDATA").map(PathBuf::from).expect("APPDATA is required; startup validates the profile");
+    let dir = base.join("MessageSolutions");
     dir
 }
 
 fn helper_path() -> PathBuf {
     let exe = std::env::current_exe().unwrap_or_default();
     let dir = exe.parent().map(|p| p.to_path_buf()).unwrap_or_default();
-    dir.join("messagecraft-bridge.exe")
+    dir.join("messagesolutions-bridge.exe")
 }
 
 impl Bridge {
@@ -79,7 +78,7 @@ impl Bridge {
                 self.running = false;
                 let _ = self.tx.send(json!({
                     "ev": "bridge_missing",
-                    "message": format!("MessageCraft's connection helper couldn't start ({}): {e}", path.display()),
+                    "message": format!("MessageSolutions's connection helper couldn't start ({}): {e}", path.display()),
                 }));
             }
         }

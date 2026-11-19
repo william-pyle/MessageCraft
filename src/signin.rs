@@ -1,4 +1,4 @@
-//! "Sign in with Google": `MessageCraft.exe --google-signin` opens a small browser window (Edge
+//! "Sign in with Google": `MessageSolutions.exe --google-signin` opens a small browser window (Edge
 //! WebView2) at Google's sign-in page. Once the person is signed in and the page reaches Google
 //! Messages, it reads the Google session cookies that Google Messages for web uses, prints them as
 //! one line of JSON for the main window, and closes. The main window passes them to the
@@ -36,7 +36,7 @@ pub fn run(icon: egui::IconData) -> ! {
     let event_loop = EventLoopBuilder::<Ev>::with_user_event().build();
     let proxy = event_loop.create_proxy();
     let window = WindowBuilder::new()
-        .with_title("Sign in to Google - MessageCraft")
+        .with_title("Sign in to Google - MessageSolutions")
         .with_inner_size(tao::dpi::LogicalSize::new(520.0, 760.0))
         .with_window_icon(Icon::from_rgba(icon.rgba, icon.width, icon.height).ok())
         .build(&event_loop)

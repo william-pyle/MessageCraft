@@ -25,6 +25,13 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      - name: Verify release version
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1).Matches[0].Groups[1].Value
+          if ((Get-Content package.json | ConvertFrom-Json).version -ne $version) { throw 'Package versions differ' }
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$version") { throw 'Tag differs from package version' }
+
       - name: Install WiX (for the installer)
         shell: pwsh
         run: |
@@ -37,20 +44,20 @@ jobs:
         run: |
           cargo test --locked
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cargo test --manifest-path contactcraft-store/Cargo.toml
+          cargo test --manifest-path contactsolutions-store/Cargo.toml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Test bridge
         working-directory: bridge
         run: go test ./...
 
-      - name: Build MessageCraft
+      - name: Build MessageSolutions
         shell: pwsh
         run: ./build.ps1
 
       - uses: actions/upload-artifact@v4
         with:
-          name: MessageCraft-windows
+          name: MessageSolutions-windows
           path: dist/
 
       - name: Publish release
@@ -58,8 +65,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/MessageCraft-windows-x64.msi
-            dist/MessageCraft-windows.zip
-          name: MessageCraft ${{ github.ref_name }}
+            dist/MessageSolutions-windows-x64.msi
+            dist/MessageSolutions-windows.zip
+          name: MessageSolutions ${{ github.ref_name }}
           body_path: packaging/release-notes.md
           generate_release_notes: true
+          fail_on_unmatched_files: true

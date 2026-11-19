@@ -6,7 +6,7 @@ use crate::app::{App, Conn, MediaSlot, PairStep};
 use crate::icons::{self, Icon};
 use crate::model::{Conversation, Media, Message};
 use crate::theme;
-use crate::contactcraft;
+use crate::contactsolutions;
 use crate::timefmt;
 use crate::widgets::{self, icon_button};
 
@@ -33,12 +33,12 @@ impl App {
         let p = ui.painter().clone();
         let header_theme = self.people.theme_for(&conv).cloned();
         let banner = self.people.banner_for_conv(&conv).cloned();
-        let colored = header_theme.as_ref().and_then(|th| contactcraft::color(&th.accent));
+        let colored = header_theme.as_ref().and_then(|th| contactsolutions::color(&th.accent));
         if let Some(accent) = colored { p.rect_filled(header, 8.0, accent); }
         if let Some(tex) = banner.as_ref() {
             p.image(tex.id(), header, crate::people::cover_uv(tex.size_vec2(), header.size()), Color32::WHITE);
         }
-        let header_ink = header_theme.as_ref().and_then(|th| contactcraft::color(&th.text))
+        let header_ink = header_theme.as_ref().and_then(|th| contactsolutions::color(&th.text))
             .unwrap_or(if colored.is_some() || banner.is_some() { Color32::WHITE } else { t.text });
         let mut title = self.people.title_for(&conv);
         if let Some(th) = &header_theme { if !th.emoji.is_empty() { title.push_str(&format!("  {}", th.emoji)); } }
@@ -62,11 +62,11 @@ impl App {
         let actions = Rect::from_min_size(pos2(header.max.x - 130.0, header.min.y + 8.0), vec2(114.0, 26.0));
         let mut a = ui.new_child(egui::UiBuilder::new().max_rect(actions).layout(egui::Layout::right_to_left(egui::Align::Center)));
         a.spacing_mut().item_spacing.x = 2.0;
-        // The person in a one-to-one conversation: open or create in ContactCraft.
+        // The person in a one-to-one conversation: open or create in ContactSolutions.
         if !conv.group && self.people.state == crate::people::ContactsState::Ready {
             if let Some(other) = conv.others().next().cloned() {
                 let existing = self.people.contact_for(&other.number).map(|c| c.id.clone());
-                let tip = if existing.is_some() { "Open in ContactCraft contacts" } else { "Add to ContactCraft contacts" };
+                let tip = if existing.is_some() { "Open in ContactSolutions contacts" } else { "Add to ContactSolutions contacts" };
                 if icon_button(&mut a, &t, Icon::Person, 26.0, tip).clicked() {
                     match existing {
                         Some(cid) => {
@@ -98,7 +98,7 @@ impl App {
         let composer = Rect::from_min_max(pos2(rect.min.x + 14.0, rect.max.y - composer_h - 10.0), pos2(rect.max.x - 14.0, rect.max.y - 12.0));
         let messages_rect = Rect::from_min_max(pos2(rect.min.x + 2.0, header.max.y + 2.0), pos2(rect.max.x - 2.0, composer.min.y - 6.0));
         if let Some(th) = &header_theme {
-            if let Some(col) = contactcraft::color(&th.background) { ui.painter().rect_filled(messages_rect, 0.0, col); }
+            if let Some(col) = contactsolutions::color(&th.background) { ui.painter().rect_filled(messages_rect, 0.0, col); }
             if let Some(tex) = self.people.background_for_conv(&conv) {
                 let uv = if th.background_fit == "stretch" { Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)) }
                     else { crate::people::cover_uv(tex.size_vec2(), messages_rect.size()) };
@@ -312,11 +312,11 @@ impl App {
         let mut radius = 16.0;
         let mut font_size = 13.5;
         if let Some(th) = self.people.theme_for(conv).or_else(|| contact.map(|c| &c.theme)) {
-            fill = contactcraft::color(if m.from_me { &th.bubble_out } else { &th.bubble_in }).unwrap_or(fill);
-            ink = contactcraft::color(if m.from_me { &th.bubble_out_text } else { &th.bubble_in_text }).unwrap_or(ink);
+            fill = contactsolutions::color(if m.from_me { &th.bubble_out } else { &th.bubble_in }).unwrap_or(fill);
+            ink = contactsolutions::color(if m.from_me { &th.bubble_out_text } else { &th.bubble_in_text }).unwrap_or(ink);
             if th.bubble_radius > 0 { radius = th.bubble_radius as f32; }
             if th.text_size > 0.0 { font_size = th.text_size.clamp(9.0, 30.0); }
-            if !m.from_me { ink = contactcraft::color(&th.text_color).unwrap_or(ink); }
+            if !m.from_me { ink = contactsolutions::color(&th.text_color).unwrap_or(ink); }
         }
         let font = theme::regular(font_size);
         let text_galley = if m.text.is_empty() {
@@ -605,9 +605,9 @@ impl App {
             ui.spacing_mut().item_spacing.y = 10.0;
             match &self.conn {
                 Conn::HelperMissing(msg) => {
-                    ui.label(egui::RichText::new("MessageCraft can't reach its connection helper").font(theme::semibold(22.0)).color(t.text));
+                    ui.label(egui::RichText::new("MessageSolutions can't reach its connection helper").font(theme::semibold(22.0)).color(t.text));
                     ui.label(egui::RichText::new(msg.clone()).font(theme::regular(13.0)).color(t.text_dim));
-                    ui.label(egui::RichText::new("The helper (messagecraft-bridge.exe) must sit in the same folder as MessageCraft.exe.").font(theme::regular(13.0)).color(t.text_dim));
+                    ui.label(egui::RichText::new("The helper (messagesolutions-bridge.exe) must sit in the same folder as MessageSolutions.exe.").font(theme::regular(13.0)).color(t.text_dim));
                     ui.add_space(8.0);
                     if widgets::primary_button(ui, &t, "Try again", true).clicked() {
                         let ctx = ui.ctx().clone();
@@ -616,15 +616,15 @@ impl App {
                     return;
                 }
                 Conn::Starting => {
-                    ui.label(egui::RichText::new("Starting MessageCraft…").font(theme::semibold(22.0)).color(t.text));
+                    ui.label(egui::RichText::new("Starting MessageSolutions…").font(theme::semibold(22.0)).color(t.text));
                     return;
                 }
                 _ => {}
             }
             let qr_mode = matches!(self.pair_step, PairStep::Qr);
-            ui.label(egui::RichText::new("Use MessageCraft with your phone").font(theme::semibold(22.0)).color(t.text));
+            ui.label(egui::RichText::new("Use MessageSolutions with your phone").font(theme::semibold(22.0)).color(t.text));
             ui.label(
-                egui::RichText::new("Read and send your phone's texts from this computer. MessageCraft pairs with Google Messages on your Android phone, the same way Google Messages for web does.")
+                egui::RichText::new("Read and send your phone's texts from this computer. MessageSolutions pairs with Google Messages on your Android phone, the same way Google Messages for web does.")
                     .font(theme::regular(13.5))
                     .color(t.text_dim),
             );
@@ -639,7 +639,7 @@ impl App {
                 [
                     "Click Sign in with Google and sign in with the Google account your phone's Google Messages uses.",
                     "Google finds your phone, and Google Messages on it shows a few emoji.",
-                    "On your phone, tap the emoji MessageCraft shows. That's it.",
+                    "On your phone, tap the emoji MessageSolutions shows. That's it.",
                 ]
             };
             for (i, s) in steps.iter().enumerate() {
@@ -654,7 +654,7 @@ impl App {
             let note = if qr_mode {
                 "Newer versions of Google Messages pair with your Google account instead of a QR code. If your phone's Device pairing screen has no QR code scanner, go back and use Sign in with Google."
             } else {
-                "Your phone's Device pairing screen should say \"sign in to the same Google Account\". Your phone stays the place your messages live: it needs to be on and online for MessageCraft to sync and send. You only pair once; the pairing is kept on this computer, locked to your Windows account."
+                "Your phone's Device pairing screen should say \"sign in to the same Google Account\". Your phone stays the place your messages live: it needs to be on and online for MessageSolutions to sync and send. You only pair once; the pairing is kept on this computer, locked to your Windows account."
             };
             ui.add(egui::Label::new(egui::RichText::new(note).font(theme::regular(12.0)).color(t.text_dim)).wrap());
             if !wide {

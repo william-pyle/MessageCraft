@@ -2,8 +2,8 @@
 
 use std::collections::{HashMap, HashSet};
 
-use contactcraft_store::cleanup::{self, NamePart, Options};
-use contactcraft_store::{Address, Contact, Email, Labeled};
+use contactsolutions_store::cleanup::{self, NamePart, Options};
+use contactsolutions_store::{Address, Contact, Email, Labeled};
 
 #[test]
 fn names() {
@@ -70,7 +70,7 @@ fn repeats_on_one_contact() {
 
 fn person(given: &str, family: &str, phone: &str) -> Contact {
     let mut c = Contact::new();
-    c.id = contactcraft_store::new_id();
+    c.id = contactsolutions_store::new_id();
     c.name.given = given.into();
     c.name.family = family.into();
     if !phone.is_empty() {
@@ -117,7 +117,7 @@ fn duplicates_and_merge() {
     assert_eq!(m.emails.len(), 1, "the email from the other entry is carried over");
     // Exactly the same apart from ids and times: identical.
     let mut e = a.clone();
-    e.id = contactcraft_store::new_id();
+    e.id = contactsolutions_store::new_id();
     e.created = "2020-01-01T00:00:00Z".into();
     assert!(cleanup::identical(&[a.clone(), e]));
 }

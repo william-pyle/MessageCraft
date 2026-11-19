@@ -1,17 +1,17 @@
-//! # ContactCraft's shared contact store
+//! # ContactSolutions's shared contact store
 //!
-//! ContactCraft keeps its contacts and groups where other applications can reach them, whether ContactCraft is
-//! running or not: a SQLite database and a folder of pictures in `%APPDATA%\ContactCraft`.
+//! ContactSolutions keeps its contacts and groups where other applications can reach them, whether ContactSolutions is
+//! running or not: a SQLite database and a folder of pictures in `%APPDATA%\ContactSolutions`.
 //! This crate is the way in. Add it to another Craft app:
 //!
 //! ```toml
-//! contactcraft-store = { path = "<ContactCraft>/store" }
+//! contactsolutions-store = { path = "<ContactSolutions>/store" }
 //! ```
 //!
 //! and then:
 //!
 //! ```no_run
-//! use contactcraft_store::Store;
+//! use contactsolutions_store::Store;
 //! let store = Store::open_default().unwrap();
 //! if let Some(c) = store.find_by_phone("+1 555 010 2030").unwrap() {
 //!     println!("{} — {}", c.display_name(), c.theme.accent);
@@ -19,14 +19,15 @@
 //! }
 //! ```
 //!
-//! Changes to contacts or groups made through the store show in ContactCraft (it watches
-//! [`Store::revision`]). ContactCraft never connects to Google: contacts come in and go out only
+//! Changes to contacts or groups made through the store show in ContactSolutions (it watches
+//! [`Store::revision`]). ContactSolutions never connects to Google: contacts come in and go out only
 //! through files (vCard, CSV, JSON).
 //! See `docs/shared-contacts.md` for the database layout, for programs not written in Rust.
 
 pub mod cleanup;
 pub mod csv;
 pub mod model;
+pub mod migration;
 pub mod store;
 pub mod vcard;
 

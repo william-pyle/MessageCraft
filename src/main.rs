@@ -1,4 +1,4 @@
-//! MessageCraft: your phone's text messages on Windows, in the style of MailCraft.
+//! MessageSolutions: your phone's text messages on Windows, in the style of MailSolutions.
 
 #![windows_subsystem = "windows"]
 
@@ -9,9 +9,10 @@ mod chrome;
 mod demo;
 mod icons;
 mod lists;
-mod contactcraft;
+mod contactsolutions;
 mod people;
 mod model;
+mod migration;
 mod reading;
 mod signin;
 mod theme;
@@ -22,7 +23,7 @@ mod window_chrome;
 #[cfg(all(windows, debug_assertions))]
 mod window_smoke;
 
-/// The window icon: MailCraft's blue tile with a white speech bubble, drawn here.
+/// The window icon: MailSolutions's blue tile with a white speech bubble, drawn here.
 fn app_icon() -> egui::IconData {
     const N: usize = 64;
     let mut rgba = vec![0u8; N * N * 4];
@@ -61,13 +62,20 @@ fn app_icon() -> egui::IconData {
 }
 
 fn main() -> eframe::Result {
+    if !std::env::args().any(|a| a == "--demo") {
+        if let Err(error) = migration::prepare() {
+            rfd::MessageDialog::new().set_title("MessageSolutions profile needs attention")
+                .set_description(&error).set_level(rfd::MessageLevel::Error).show();
+            return Ok(());
+        }
+    }
     if std::env::args().any(|a| a == "--google-signin") {
         signin::run(app_icon());
     }
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("MessageCraft")
-            .with_app_id("MessageCraft")
+            .with_title("MessageSolutions")
+            .with_app_id("MessageSolutions")
             .with_inner_size([1440.0, 920.0])
             .with_min_inner_size([900.0, 560.0])
             .with_decorations(!cfg!(windows))
@@ -76,7 +84,7 @@ fn main() -> eframe::Result {
             .with_icon(app_icon()),
         ..Default::default()
     };
-    eframe::run_native("MessageCraft", options, Box::new(|cc| {
+    eframe::run_native("MessageSolutions", options, Box::new(|cc| {
         let app = app::App::new(cc);
         #[cfg(all(windows, debug_assertions))]
         return Ok(window_smoke::wrap(cc, app));

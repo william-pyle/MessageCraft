@@ -1,8 +1,8 @@
 //! The store: one SQLite database (`contacts.db`) and a `photos` folder, in
-//! `%APPDATA%\ContactCraft` (or the folder `CONTACTCRAFT_DATA` names).
+//! `%APPDATA%\ContactSolutions` (or the folder `CONTACTSOLUTIONS_DATA` names).
 //!
-//! SQLite in WAL mode lets several programs read and write at once, so ContactCraft, MessageCraft
-//! and MailCraft can all open it, whether ContactCraft is running or not. Every contact or group
+//! SQLite in WAL mode lets several programs read and write at once, so ContactSolutions, MessageCraft
+//! and MailCraft can all open it, whether ContactSolutions is running or not. Every contact or group
 //! change bumps the store's `revision`; a program that keeps records in memory checks [`Store::revision`] now and
 //! then and reloads when it moved.
 
@@ -42,17 +42,17 @@ fn image_owner(owner: &str) -> String {
 }
 
 impl Store {
-    /// Where the shared store lives: `CONTACTCRAFT_DATA`, else `%APPDATA%\ContactCraft`.
+    /// Where the shared store lives: `CONTACTSOLUTIONS_DATA`, else `%APPDATA%\ContactSolutions`.
     pub fn default_dir() -> PathBuf {
-        if let Some(d) = std::env::var_os("CONTACTCRAFT_DATA") {
+        if let Some(d) = std::env::var_os("CONTACTSOLUTIONS_DATA") {
             return PathBuf::from(d);
         }
-        std::env::var_os("APPDATA").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(".")).join("ContactCraft")
+        std::env::var_os("APPDATA").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(".")).join("ContactSolutions")
     }
 
     /// Open (and create, the first time) the shared store.
     pub fn open_default() -> Result<Store> {
-        Store::open(&Store::default_dir())
+        Store::open(&crate::migration::prepare_store()?)
     }
 
     pub fn open(dir: &Path) -> Result<Store> {
@@ -361,18 +361,18 @@ impl Store {
         }
     }
 
-    /// Where ContactCraft.exe is, so another app can start it to create or edit a contact
-    /// (`--new-contact`, `--edit-contact <id>`, `--edit-phone <number>`...). ContactCraft
+    /// Where ContactSolutions.exe is, so another app can start it to create or edit a contact
+    /// (`--new-contact`, `--edit-contact <id>`, `--edit-phone <number>`...). ContactSolutions
     /// records its own location each time it starts; the standard install folder is tried too.
-    pub fn contactcraft_exe(&self) -> Option<PathBuf> {
-        if let Some(p) = self.meta("contactcraft.exe").map(PathBuf::from).filter(|p| p.is_file()) {
+    pub fn contactsolutions_exe(&self) -> Option<PathBuf> {
+        if let Some(p) = self.meta("contactsolutions.exe").map(PathBuf::from).filter(|p| p.is_file()) {
             return Some(p);
         }
         ["ProgramFiles", "ProgramW6432", "LOCALAPPDATA"]
             .iter()
             .filter_map(std::env::var_os)
             .map(PathBuf::from)
-            .flat_map(|b| [b.join("ContactCraft").join("ContactCraft.exe"), b.join("Programs").join("ContactCraft").join("ContactCraft.exe")])
+            .flat_map(|b| [b.join("ContactSolutions").join("ContactSolutions.exe"), b.join("Programs").join("ContactSolutions").join("ContactSolutions.exe")])
             .find(|p| p.is_file())
     }
 

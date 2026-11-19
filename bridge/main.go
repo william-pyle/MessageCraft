@@ -1,5 +1,5 @@
-// MessageCraft bridge: a small helper process that talks to Google Messages for web on behalf of
-// the MessageCraft window. It pairs with the phone (QR code), keeps the session, syncs
+// MessageSolutions bridge: a small helper process that talks to Google Messages for web on behalf of
+// the MessageSolutions window. It pairs with the phone (QR code), keeps the session, syncs
 // conversations and messages, and sends. It speaks JSON lines: commands on stdin, events on stdout.
 //
 // The Google Messages protocol itself is handled by libgm (go.mau.fi/mautrix-gmessages/pkg/libgm,
@@ -72,7 +72,7 @@ func friendlyError(err error) string {
 	case errors.Is(err, context.DeadlineExceeded):
 		return "Your phone didn't answer in time. Check that it's online and try again."
 	case strings.Contains(s, "not logged in"), strings.Contains(s, "client is nil"):
-		return "MessageCraft isn't paired with your phone yet."
+		return "MessageSolutions isn't paired with your phone yet."
 	}
 	return s
 }
@@ -103,15 +103,14 @@ type pairing struct {
 
 var log zerolog.Logger
 
+var version = "1.6.0"
+
 func main() {
 	dataDir := flag.String("data", "", "folder for the session and cache")
 	flag.Parse()
 	if *dataDir == "" {
-		base, err := os.UserConfigDir()
-		if err != nil {
-			base = "."
-		}
-		*dataDir = filepath.Join(base, "MessageCraft")
+		emit("error", map[string]any{"context": "startup", "message": "Start MessageSolutions.exe; the helper requires an explicit, prepared --data profile."})
+		os.Exit(2)
 	}
 	_ = os.MkdirAll(*dataDir, 0o700)
 	cacheDir := filepath.Join(*dataDir, "media")
@@ -134,7 +133,7 @@ func main() {
 		ctx:      ctx,
 		stop:     cancel,
 	}
-	emit("hello", map[string]any{"version": "1.4.1", "data_dir": *dataDir})
+	emit("hello", map[string]any{"version": version, "data_dir": *dataDir})
 
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
@@ -299,6 +298,10 @@ func (b *bridge) connect() {
 	b.mu.Unlock()
 
 	auth, err := b.loadSession()
+	if err != nil && !os.IsNotExist(err) {
+		emitState("error", "The saved pairing could not be opened. Preserve session.bin and recover it under the original Windows account; do not pair over it.")
+		return
+	}
 	if err != nil || auth == nil || (auth.TachyonAuthToken == nil && !auth.HasCookies()) {
 		emitState("no_session", "")
 		return
@@ -312,7 +315,7 @@ func (b *bridge) connect() {
 	if err := cli.Connect(b.ctx); err != nil {
 		log.Err(err).Msg("connect failed")
 		if pairingLost(err) {
-			b.forgetPairing("Your phone no longer recognises this computer. Pair again to keep using MessageCraft.")
+			b.forgetPairing("Your phone no longer recognises this computer. Pair again to keep using MessageSolutions.")
 			return
 		}
 		emitState("error", friendlyError(err))
@@ -497,7 +500,7 @@ func (b *bridge) startGooglePairing(cookies map[string]string) {
 	if err != nil {
 		switch {
 		case errors.Is(err, libgm.ErrIncorrectEmoji):
-			fail("A different emoji was tapped on your phone. Try again and tap the one MessageCraft shows.", err)
+			fail("A different emoji was tapped on your phone. Try again and tap the one MessageSolutions shows.", err)
 		case errors.Is(err, libgm.ErrPairingCancelled):
 			fail("Pairing was cancelled on your phone.", err)
 		case errors.Is(err, libgm.ErrPairingTimeout):
@@ -677,12 +680,12 @@ func (b *bridge) onEvent(rawEvt any) {
 		go b.syncConversations("inbox", 100)
 	case *events.ListenFatalError:
 		if pairingLost(evt.Error) {
-			b.forgetPairing("Your phone no longer recognises this computer. Pair again to keep using MessageCraft.")
+			b.forgetPairing("Your phone no longer recognises this computer. Pair again to keep using MessageSolutions.")
 			return
 		}
 		emitState("error", friendlyError(evt.Error))
 	case *events.GaiaLoggedOut:
-		b.forgetPairing("Google signed this computer out of Google Messages. Pair again to keep using MessageCraft.")
+		b.forgetPairing("Google signed this computer out of Google Messages. Pair again to keep using MessageSolutions.")
 	case *gmproto.RevokePairData:
 		log.Info().Msg("pairing revoked by phone")
 		b.forgetPairing("Your phone removed this computer from its paired devices.")

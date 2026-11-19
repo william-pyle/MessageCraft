@@ -1,6 +1,6 @@
 //! One contact, with every kind of information the major contact formats keep: Google Contacts
 //! (People API), Outlook / Exchange, vCard 3 and 4 (with the RFC 6474 and 6715 additions) and
-//! Apple Contacts. Anything a newer version of ContactCraft (or another Craft app) adds that this
+//! Apple Contacts. Anything a newer version of ContactSolutions (or another Craft app) adds that this
 //! version doesn't know is kept as it is in `extra`, so nothing is ever lost on a round trip.
 //!
 //! Every list (phones, emails, addresses...) is a list of labelled values, so a contact can have

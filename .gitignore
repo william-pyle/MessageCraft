@@ -1,6 +1,6 @@
 /target
-/contactcraft-store/target/
-/contactcraft-store/Cargo.lock
+/contactsolutions-store/target/
+/contactsolutions-store/Cargo.lock
 /dist
 /.tools
 /node_modules

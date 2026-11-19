@@ -162,6 +162,8 @@ pub enum Appearance {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, serde_json::Value>,
     pub appearance: Appearance,
     pub folder_pane: bool,
     pub tighter: bool,
@@ -172,7 +174,7 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { appearance: Appearance::System, folder_pane: true, tighter: false, zoom: 100, enter_sends: true, preview_lines: 1 }
+        Settings { extra: Default::default(), appearance: Appearance::System, folder_pane: true, tighter: false, zoom: 100, enter_sends: true, preview_lines: 1 }
     }
 }
 

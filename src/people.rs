@@ -1,8 +1,8 @@
-//! ContactCraft contacts, indexed by phone number. ContactCraft owns all editing.
+//! ContactSolutions contacts, indexed by phone number. ContactSolutions owns all editing.
 use std::collections::{HashMap, HashSet};
 use egui::{Color32, Rect, ScrollArea, Sense, Stroke, StrokeKind, TextureHandle, Ui, Vec2, pos2, vec2};
 use crate::app::App;
-use crate::contactcraft::{self, Contact, ContactGroup, GroupPaths, Paths, Request, Reply, EditOutcome};
+use crate::contactsolutions::{self, Contact, ContactGroup, GroupPaths, Paths, Request, Reply, EditOutcome};
 use crate::model::Conversation;
 use crate::icons::Icon;
 use crate::{theme, widgets};
@@ -17,7 +17,7 @@ pub struct People {
     pub groups: Vec<GroupPaths>,
     pub by_phone: HashMap<String, usize>,
     pub selected: Option<String>,
-    pub link: Option<contactcraft::Link>,
+    pub link: Option<contactsolutions::Link>,
     pub exe: Option<std::path::PathBuf>,
     pub photos: HashMap<String, TextureHandle>,
     pub backgrounds: HashMap<String, TextureHandle>,
@@ -36,7 +36,7 @@ impl People {
         }
     }
     pub fn paths_for(&self, number: &str) -> Option<&Paths> {
-        self.by_phone.get(&contactcraft::phone_key(number)?).and_then(|i| self.contacts.get(*i))
+        self.by_phone.get(&contactsolutions::phone_key(number)?).and_then(|i| self.contacts.get(*i))
     }
     pub fn contact_for(&self, number: &str) -> Option<&Contact> { self.paths_for(number).map(|p| &p.contact) }
     pub fn name_for(&self, number: &str) -> Option<String> { self.contact_for(number).map(Contact::display_name) }
@@ -48,12 +48,12 @@ impl People {
     }
     pub fn group_for(&self, conv: &Conversation) -> Option<&GroupPaths> {
         if !conv.group { return None; }
-        let numbers: HashSet<String> = conv.others().filter_map(|p| contactcraft::phone_key(&p.number)).collect();
+        let numbers: HashSet<String> = conv.others().filter_map(|p| contactsolutions::phone_key(&p.number)).collect();
         if numbers.len() < 2 { return None; }
         self.groups.iter().filter_map(|paths| {
             let members: Vec<Vec<String>> = paths.group.members.iter().map(|member| match member {
-                contactcraft_store::GroupMember::Number { number } => contactcraft::phone_key(number).into_iter().collect(),
-                contactcraft_store::GroupMember::Contact { id } => self.contacts.iter().find(|p| p.contact.id == *id)
+                contactsolutions_store::GroupMember::Number { number } => contactsolutions::phone_key(number).into_iter().collect(),
+                contactsolutions_store::GroupMember::Contact { id } => self.contacts.iter().find(|p| p.contact.id == *id)
                     .map(|p| p.contact.phone_keys()).unwrap_or_default(),
             }).collect();
             let matched = members.iter().filter(|keys| keys.iter().any(|k| numbers.contains(k))).count();
@@ -64,7 +64,7 @@ impl People {
         }).max_by_key(|(_, score)| *score).map(|(paths, _)| paths)
     }
     pub fn group_record_for(&self, conv: &Conversation) -> Option<&ContactGroup> { self.group_for(conv).map(|p| &p.group) }
-    pub fn theme_for(&self, conv: &Conversation) -> Option<&contactcraft_store::ContactTheme> {
+    pub fn theme_for(&self, conv: &Conversation) -> Option<&contactsolutions_store::ContactTheme> {
         if conv.group { self.group_record_for(conv).map(|g| &g.theme) }
         else { self.contact_for(conv.contact_number()).map(|c| &c.theme) }
     }
@@ -86,7 +86,7 @@ impl People {
         if let Some(group) = self.group_record_for(conv) {
             let shape = group.theme.avatar_shape.as_str();
             let corner = match shape { "square" => 0, "rounded" => (radius * 0.35) as u8, _ => radius as u8 };
-            let fill = contactcraft::color(&group.theme.accent).unwrap_or_else(|| theme::avatar_color(&group.id, hex));
+            let fill = contactsolutions::color(&group.theme.accent).unwrap_or_else(|| theme::avatar_color(&group.id, hex));
             let r = Rect::from_center_size(center, Vec2::splat(radius * 2.0));
             ui.painter().rect_filled(r, corner, fill);
             let initials: String = group.name.split_whitespace().filter_map(|w| w.chars().next()).take(2).collect::<String>().to_uppercase();
@@ -105,7 +105,7 @@ impl People {
                     egui::Image::new((tex.id(), r.size())).corner_radius(corner).paint_at(ui, r);
                     return;
                 }
-                let fill = contactcraft::color(&c.theme.accent).unwrap_or_else(|| theme::avatar_color(number, hex));
+                let fill = contactsolutions::color(&c.theme.accent).unwrap_or_else(|| theme::avatar_color(number, hex));
                 ui.painter().rect_filled(r, corner, fill);
                 ui.painter().text(center, egui::Align2::CENTER_CENTER, c.initials(), theme::semibold(radius * 0.78), Color32::WHITE);
                 return;
@@ -192,8 +192,8 @@ impl App {
         }
     }
     pub fn text_number(&mut self, number: &str) {
-        let key = contactcraft::phone_key(number);
-        let existing = self.convs.values().filter(|c| !c.group).find(|c| c.participants.iter().any(|p| !p.is_me && contactcraft::phone_key(&p.number) == key)).map(|c| (c.id.clone(), c.folder.clone()));
+        let key = contactsolutions::phone_key(number);
+        let existing = self.convs.values().filter(|c| !c.group).find(|c| c.participants.iter().any(|p| !p.is_me && contactsolutions::phone_key(&p.number) == key)).map(|c| (c.id.clone(), c.folder.clone()));
         self.people.open = false;
         if let Some((id, folder)) = existing {
             self.folder = match folder.as_str() { "archive" => crate::model::Folder::Archive, "spam" => crate::model::Folder::Spam, _ => crate::model::Folder::Inbox };
@@ -202,16 +202,16 @@ impl App {
         } else if self.conn.paired_view() {
             self.new_chat = Some(crate::app::NewChat { numbers: number.to_string(), busy: true, ..Default::default() });
             self.start_new_chat();
-        } else { self.notify("Pair MessageCraft with your phone first.", true); }
+        } else { self.notify("Pair MessageSolutions with your phone first.", true); }
     }
     pub fn add_contact_from(&mut self, _name: &str, number: &str) { self.edit_contact(vec!["--edit-phone".into(), number.into()]); }
     pub fn edit_contact(&mut self, args: Vec<String>) {
-        if self.people.exe.is_none() { self.notify("ContactCraft's editor is not installed on this computer.", true); }
+        if self.people.exe.is_none() { self.notify("ContactSolutions's editor is not installed on this computer.", true); }
         else if let Some(link) = &self.people.link { link.send(Request::Edit(args)); }
     }
     pub fn open_group_editor(&mut self, args: Vec<String>) {
         if self.people.exe.is_none() {
-            self.notify("ContactCraft isn't installed on this computer.", true);
+            self.notify("ContactSolutions isn't installed on this computer.", true);
             return;
         }
         if let Some(link) = &self.people.link { link.send(Request::Edit(args)); }
@@ -223,8 +223,8 @@ impl App {
         ui.painter().rect_stroke(rect, 8.0, Stroke::new(1.0, t.border), StrokeKind::Inside);
         ui.label(egui::RichText::new("Contacts").font(theme::semibold(15.0)).color(t.text));
         match &self.people.state {
-            ContactsState::Off(e) => { ui.label(format!("Couldn't read ContactCraft contacts: {e}")); return; }
-            ContactsState::Unknown => { ui.label("Reading ContactCraft contacts…"); return; }
+            ContactsState::Off(e) => { ui.label(format!("Couldn't read ContactSolutions contacts: {e}")); return; }
+            ContactsState::Unknown => { ui.label("Reading ContactSolutions contacts…"); return; }
             ContactsState::Ready => {}
         }
         let q = self.search.trim().to_lowercase();
@@ -248,9 +248,9 @@ impl App {
         let rect = ui.max_rect();
         ui.painter().rect_filled(rect, 8.0, t.surface);
         ui.painter().rect_stroke(rect, 8.0, Stroke::new(1.0, t.border), StrokeKind::Inside);
-        let Some(c) = self.people.selected_contact().cloned() else { ui.centered_and_justified(|ui| ui.label("Select a ContactCraft contact")); return; };
+        let Some(c) = self.people.selected_contact().cloned() else { ui.centered_and_justified(|ui| ui.label("Select a ContactSolutions contact")); return; };
         let name = c.display_name();
-        let accent = contactcraft::color(&c.theme.accent).unwrap_or_else(|| theme::avatar_color(&c.id, &c.id));
+        let accent = contactsolutions::color(&c.theme.accent).unwrap_or_else(|| theme::avatar_color(&c.id, &c.id));
         let number = c.phones.first().map(|p| p.value.as_str()).unwrap_or("");
         let (banner, _) = ui.allocate_exact_size(vec2(ui.available_width(), 155.0), Sense::hover());
         ui.painter().rect_filled(banner, egui::CornerRadius { nw: 8, ne: 8, sw: 0, se: 0 }, accent);
@@ -259,7 +259,7 @@ impl App {
             ui.painter().image(tex.id(), banner, cover_uv(tex.size_vec2(), banner.size()), Color32::WHITE);
         }
         self.people.avatar(ui, pos2(banner.min.x + 85.0, banner.max.y - 8.0), 52.0, &name, number, "", false, &t);
-        let banner_ink = contactcraft::color(&c.theme.text).unwrap_or(Color32::WHITE);
+        let banner_ink = contactsolutions::color(&c.theme.text).unwrap_or(Color32::WHITE);
         ui.painter().text(pos2(banner.min.x + 155.0, banner.max.y - 35.0), egui::Align2::LEFT_CENTER, &name, theme::semibold(27.0), banner_ink);
         ui.add_space(19.0);
         let mut text_to = None;

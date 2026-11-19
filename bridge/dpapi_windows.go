@@ -9,6 +9,7 @@ import (
 // The saved session holds the keys of the pairing, so it is locked to this Windows account with
 // the system's data protection (DPAPI) before it is written.
 
+// Permanent credential-format binding. DO NOT rename: existing encrypted pairing uses this entropy.
 var entropy = []byte("MessageCraft session v1")
 
 func blob(b []byte) *windows.DataBlob {
@@ -25,7 +26,7 @@ func takeBlob(out *windows.DataBlob) []byte {
 
 func protect(plain []byte) ([]byte, error) {
 	var out windows.DataBlob
-	desc, _ := windows.UTF16PtrFromString("MessageCraft")
+	desc, _ := windows.UTF16PtrFromString("MessageSolutions")
 	if err := windows.CryptProtectData(blob(plain), desc, blob(entropy), 0, nil, windows.CRYPTPROTECT_UI_FORBIDDEN, &out); err != nil {
 		return nil, err
 	}

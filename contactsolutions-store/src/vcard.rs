@@ -1,6 +1,6 @@
 //! vCard 3.0 in and out (the format Outlook, Google Contacts and Apple Contacts all import and
-//! export). Fields vCard has no standard name for travel as `X-CONTACTCRAFT-*` lines, so a
-//! ContactCraft-to-ContactCraft round trip keeps everything; the theme travels as JSON.
+//! export). Fields vCard has no standard name for travel as `X-CONTACTSOLUTIONS-*` lines, so a
+//! ContactSolutions-to-ContactSolutions round trip keeps everything; the theme travels as JSON.
 
 use base64::Engine;
 
@@ -190,12 +190,12 @@ pub fn export(contacts: &[Contact], photo: impl Fn(&Contact) -> Option<Vec<u8>>)
             let kind = if bytes.starts_with(&[0x89, b'P']) { "PNG" } else { "JPEG" };
             l(format!("PHOTO;ENCODING=b;TYPE={kind}:{}", base64::engine::general_purpose::STANDARD.encode(&bytes)));
         }
-        // Everything else, ContactCraft's own way.
+        // Everything else, ContactSolutions's own way.
         let mut rest = c.clone();
         rest.photo.clear();
         rest.google = None;
         let full = serde_json::to_string(&rest).unwrap_or_default();
-        l(format!("X-CONTACTCRAFT-JSON:{}", base64::engine::general_purpose::STANDARD.encode(full.as_bytes())));
+        l(format!("X-CONTACTSOLUTIONS-JSON:{}", base64::engine::general_purpose::STANDARD.encode(full.as_bytes())));
         if !c.id.is_empty() {
             l(format!("UID:{}", c.id));
         }
@@ -299,7 +299,7 @@ pub fn import(text: &str) -> Vec<(Contact, Option<Vec<u8>>)> {
                     }
                 }
                 if let Some(mut f) = full {
-                    // Written by ContactCraft: the full record wins, keeping a fresh id.
+                    // Written by ContactSolutions: the full record wins, keeping a fresh id.
                     f.id = String::new();
                     f.photo.clear();
                     c = f;
@@ -436,7 +436,7 @@ pub fn import(text: &str) -> Vec<(Contact, Option<Vec<u8>>)> {
                     *photo = base64::engine::general_purpose::STANDARD.decode(clean).ok();
                 }
             }
-            "X-CONTACTCRAFT-JSON" => {
+            "X-CONTACTSOLUTIONS-JSON" | "X-CONTACTCRAFT-JSON" => {
                 if let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(v.trim()) {
                     *full = serde_json::from_slice::<Contact>(&bytes).ok();
                 }

@@ -1,5 +1,5 @@
-"""Draw MessageCraft's icon (a blue tile with a white speech bubble, the mark the window uses) at
-every size Windows asks for, and write assets/messagecraft.ico. Standard library only.
+"""Draw MessageSolutions's icon (a blue tile with a white speech bubble, the mark the window uses) at
+every size Windows asks for, and write assets/messagesolutions.ico. Standard library only.
 
     python packaging/make_icon.py
 """
@@ -76,7 +76,7 @@ def main():
         dim = 0 if n >= 256 else n
         entries += struct.pack("<BBBBHHII", dim, dim, 0, 0, 1, 32, len(img), offset)
         offset += len(img)
-    out = Path(__file__).resolve().parent.parent / "assets" / "messagecraft.ico"
+    out = Path(__file__).resolve().parent.parent / "assets" / "messagesolutions.ico"
     out.write_bytes(header + entries + b"".join(images))
     print(f"wrote {out}")
 

@@ -1,14 +1,14 @@
 [package]
-name = "messagecraft"
-version = "1.5.0"
+name = "messagesolutions"
+version = "1.6.0"
 edition = "2024"
-description = "MessageCraft: your phone's text messages on Windows, in the MailCraft style"
+description = "MessageSolutions: your phone's text messages on Windows, in the MailSolutions style"
 license = "MIT OR Apache-2.0"
 publish = false
 build = "build.rs"
 
 [[bin]]
-name = "MessageCraft"
+name = "MessageSolutions"
 path = "src/main.rs"
 
 [dependencies]
@@ -16,13 +16,14 @@ eframe = { version = "0.37", default-features = false, features = ["default_font
 egui = "0.37"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha2 = "0.10"
 qrcode = { version = "0.14", default-features = false }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
 rfd = "0.17"
 wry = "0.57"
 tao = "0.37"
-contactcraft-store = { path = "contactcraft-store" }
+contactsolutions-store = { path = "contactsolutions-store" }
 
 [target.'cfg(windows)'.dependencies]
 raw-window-handle = "0.6"

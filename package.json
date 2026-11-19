@@ -1,8 +1,8 @@
 {
-  "name": "messagecraft",
-  "version": "1.5.0",
+  "name": "messagesolutions",
+  "version": "1.6.0",
   "private": true,
-  "description": "MessageCraft: a Windows app for your phone's text messages (Google Messages), in the style of MailCraft. The app itself is Rust + Go; this file only gives the usual build command.",
+  "description": "MessageSolutions: a Windows app for your phone's text messages (Google Messages), in the style of MailSolutions. The app itself is Rust + Go; this file only gives the usual build command.",
   "scripts": {
     "build": "powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1"
   }

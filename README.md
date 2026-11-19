@@ -1,13 +1,13 @@
-# MessageCraft
+# MessageSolutions
 
-**Your phone's text messages on Windows, in the style of [MailCraft](https://github.com/UCS-Care-Group/mailcraft).**
+**Your phone's text messages on Windows, in the style of [MailSolutions](https://github.com/william-pyle/MailSolutions).**
 
-MessageCraft is a desktop app for reading and sending the SMS, MMS and RCS chat messages on your
+MessageSolutions is a desktop app for reading and sending the SMS, MMS and RCS chat messages on your
 Android phone from a Windows PC. It pairs with Google Messages on your phone the same way Google
 Messages for web does (by signing in with your Google account and confirming with an emoji on your
 phone, or with a QR code on phones that still offer one), then keeps your conversations in sync.
 
-MessageCraft is an independent project. It is not made by, endorsed by or affiliated with Google.
+MessageSolutions is an independent project. It is not made by, endorsed by or affiliated with Google.
 
 ---
 
@@ -15,7 +15,7 @@ MessageCraft is an independent project. It is not made by, endorsed by or affili
 
 - **Pair once with your Google account** (sign in, then tap the matching emoji on your phone), or
   with a QR code on phones that still show a QR code scanner. The pairing is saved on your PC and
-  encrypted for your Windows account (DPAPI), so MessageCraft reconnects on its own the next time it
+  encrypted for your Windows account (DPAPI), so MessageSolutions reconnects on its own the next time it
   opens.
 - **Sync:** Inbox, Archived, and Spam & blocked folders, with unread counts, pinned conversations
   and grouping by date (Today, Yesterday, Earlier this week…).
@@ -26,7 +26,7 @@ MessageCraft is an independent project. It is not made by, endorsed by or affili
 - **Pictures and attachments** show previews when available. Click one to open it, or choose
   **Save** to download it to a file. A local picture shows while your phone confirms the send.
 - **New conversations** with one number, or several for a group.
-- **The MailCraft look:** title bar with search, File / Home / View / Help ribbon, module rail,
+- **The MailSolutions look:** title bar with search, File / Home / View / Help ribbon, module rail,
   folder pane, three-line conversation rows and a status bar. Light, dark or follow-Windows themes,
   interface zoom, and tighter spacing.
 - **Integrated Windows controls:** the existing top toolbar replaces the native title bar.
@@ -37,7 +37,7 @@ MessageCraft is an independent project. It is not made by, endorsed by or affili
   **Alt+F4** closes normally, saving settings and cached messages. Maximizing uses the current
   monitor's work area; edge hit targets follow Windows DPI. At narrow widths or high interface
   zoom, phone status remains in the status bar and account access stays on the avatar.
-- **ContactCraft contacts and groups:** use shared names, pictures, themes and banner images in
+- **ContactSolutions contacts and groups:** use shared names, pictures, themes and banner images in
   conversations. Right-click a conversation to add or edit its contact or group.
 - **Delete:** right-click a message to delete it, or right-click a conversation to delete its
   full message history from your phone after confirmation.
@@ -50,43 +50,46 @@ MessageCraft is an independent project. It is not made by, endorsed by or affili
 
 ## Getting started
 
-1. Download **`MessageCraft-windows-x64.msi`** from the [latest release](../../releases/latest) and
-   run it. Like MailCraft's installer, it installs into Program Files, adds a Start Menu shortcut,
-   and offers to launch MessageCraft when it finishes. To remove MessageCraft later, use Windows
+1. Download **`MessageSolutions-windows-x64.msi`** from the [latest release](../../releases/latest) and
+   run it. Like MailSolutions's installer, it installs into Program Files, adds a Start Menu shortcut,
+   and offers to launch MessageSolutions when it finishes. To remove MessageSolutions later, use Windows
    **Settings › Apps**.
-   *Portable instead:* download `MessageCraft-windows.zip`, unzip it anywhere, and keep
-   `MessageCraft.exe` and `messagecraft-bridge.exe` in the same folder.
-2. Open **MessageCraft** from the Start menu and click **Sign in with Google**.
+   *Portable instead:* download `MessageSolutions-windows.zip`, unzip it anywhere, and keep
+   `MessageSolutions.exe` and `messagesolutions-bridge.exe` in the same folder.
+2. Open **MessageSolutions** from the Start menu and click **Sign in with Google**.
 3. In the window that opens, sign in with the Google account your phone's Google Messages uses.
    (On the phone, Google Messages › profile picture › **Device pairing** says "sign in to the same
    Google Account".)
-4. Google Messages on your phone shows a few emoji. Tap the one MessageCraft shows.
+4. Google Messages on your phone shows a few emoji. Tap the one MessageSolutions shows.
 
 *Older phones:* if your phone's Device pairing screen has a **QR code scanner**, you can choose
-**Use a QR code instead** and scan the code MessageCraft shows.
+**Use a QR code instead** and scan the code MessageSolutions shows.
 
 Your conversations appear within a few seconds. Your phone does the actual sending, so it needs to
 stay on and connected to the internet.
 
 > Only one Google Messages web session can be active at a time. If you open Google Messages for
-> web in a browser, MessageCraft shows "open in another window". Click **Use here** in the status
+> web in a browser, MessageSolutions shows "open in another window". Click **Use here** in the status
 > bar to switch back.
 
-To try the window without a phone, run `MessageCraft.exe --demo` (add `--light` or `--dark` to pick
+To try the window without a phone, run `MessageSolutions.exe --demo` (add `--light` or `--dark` to pick
 a theme). It shows made-up sample conversations and saves nothing.
 
 ### Unpairing
 
-Go to **File › Info › Unpair this computer**. Your phone forgets this PC, and MessageCraft deletes
+Go to **File › Info › Unpair this computer**. Your phone forgets this PC, and MessageSolutions deletes
 its local copy of your conversations. Your messages stay on your phone.
 
-## ContactCraft contacts
+## ContactSolutions contacts
 
-MessageCraft reads the shared ContactCraft database at `%APPDATA%\ContactCraft\contacts.db` (or `CONTACTCRAFT_DATA`) even when ContactCraft is closed. It matches phone numbers to names and photos, matches group members to group conversations, and uses their themes and banner pictures in chats. The People screen shows contacts and opens ContactCraft dialogs to create, edit, or change a theme. Right-click a conversation to add or edit its contact or contact group; MessageCraft refreshes the shared store when the dialog saves.
+MessageSolutions reads the shared ContactSolutions database at `%APPDATA%\ContactSolutions\contacts.db` (or `CONTACTSOLUTIONS_DATA`) even when ContactSolutions is closed. It matches phone numbers to names and photos, matches group members to group conversations, and uses their themes and banner pictures in chats. The People screen shows contacts and opens ContactSolutions dialogs to create, edit, or change a theme. Right-click a conversation to add or edit its contact or contact group; MessageSolutions refreshes the shared store when the dialog saves.
 
 ## Where data is kept
 
-Everything lives in `%APPDATA%\MessageCraft`:
+Everything lives in `%APPDATA%\MessageSolutions`. First start copies the legacy
+MessageCraft profile, retaining the original and refusing conflicts. Pairing
+remains tied to the same Windows account. Read [migration and recovery](docs/rename-migration.md)
+before upgrading. The 1.5.0 updater requires a one-time manual download of the renamed MSI.
 
 | File | What it is |
 | --- | --- |
@@ -98,16 +101,16 @@ Everything lives in `%APPDATA%\MessageCraft`:
 
 ## How it works
 
-MessageCraft is two programs that talk to each other over JSON lines on standard input and output:
+MessageSolutions is two programs that talk to each other over JSON lines on standard input and output:
 
 ```
-MessageCraft.exe  (Rust, egui)   ── commands ─▶  messagecraft-bridge.exe  (Go, libgm)  ──▶  Google Messages
+MessageSolutions.exe  (Rust, egui)   ── commands ─▶  messagesolutions-bridge.exe  (Go, libgm)  ──▶  Google Messages
      the window                  ◀── events ───     pairing, sync, send                    ⇅ your phone
 ```
 
 - **`src/`: the window.** Rust with [egui/eframe](https://github.com/emilk/egui). The palette, type
-  scale and layout follow MailCraft's theme so the two apps look like a family.
-- **Sign in with Google** runs `MessageCraft.exe --google-signin`: a small Edge WebView2 window where
+  scale and layout follow MailSolutions's theme so the two apps look like a family.
+- **Sign in with Google** runs `MessageSolutions.exe --google-signin`: a small Edge WebView2 window where
   you sign in. It hands the Google session cookies that Google Messages for web uses to the helper,
   then deletes its own browser profile. The helper keeps them, encrypted, with the pairing.
 - **`bridge/`: the connection helper.** Go, using
@@ -115,7 +118,7 @@ MessageCraft.exe  (Rust, egui)   ── commands ─▶  messagecraft-bridge.exe
   Google Messages for web protocol (pairing, long-polling for updates, end-to-end encrypted
   requests to the phone, media upload and download).
 - **`web/`: the download page** (static HTML), published alongside each build.
-- **`packaging/`: the Windows installer** (WiX: `windows/messagecraft.wxs` and `windows/package.ps1`)
+- **`packaging/`: the Windows installer** (WiX: `windows/messagesolutions.wxs` and `windows/package.ps1`)
   and the icon generator.
 
 ### Bridge protocol (summary)
@@ -142,9 +145,9 @@ Requirements (Windows 10/11, x64):
   (`dotnet tool install --global wix --version 5.0.2`). Without WiX, the build skips the MSI and
   still makes everything else.
 
-`MessageCraft.exe` links the C runtime statically, so neither the installer nor the zip needs the
+`MessageSolutions.exe` links the C runtime statically, so neither the installer nor the zip needs the
 Visual C++ redistributable. The icon comes from `packaging/make_icon.py`, which writes
-`assets/messagecraft.ico`.
+`assets/messagesolutions.ico`.
 
 ```powershell
 npm run build
@@ -154,12 +157,12 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 
 The output goes to `dist\`:
 
-- `MessageCraft.exe`
-- `messagecraft-bridge.exe`
+- `MessageSolutions.exe`
+- `messagesolutions-bridge.exe`
 - `update.ps1` (release check and installer download)
-- `MessageCraft-windows-x64.msi` (the installer, built when [WiX v5](https://wixtoolset.org) is
+- `MessageSolutions-windows-x64.msi` (the installer, built when [WiX v5](https://wixtoolset.org) is
   installed; see `packaging/windows/package.ps1`)
-- `MessageCraft-windows.zip` (portable: both programs plus the notices)
+- `MessageSolutions-windows.zip` (portable: both programs plus the notices)
 - `index.html` and `help.html` (the download page)
 
 ### Continuous builds and releases
@@ -168,15 +171,15 @@ The output goes to `dist\`:
 an artifact. To publish a release, push a version tag:
 
 ```powershell
-git tag v1.0.0
-git push origin v1.0.0
+git tag -a v1.6.0 -m "MessageSolutions 1.6.0"
+git push origin v1.6.0
 ```
 
-The workflow then creates a GitHub Release with the installer (`MessageCraft-windows-x64.msi`) and
+The workflow then creates a GitHub Release with the installer (`MessageSolutions-windows-x64.msi`) and
 the portable zip attached.
 
 Before tagging, finish source/version/release notes, run `cargo test --locked`,
-`cargo test --manifest-path contactcraft-store/Cargo.toml`, `go test ./...` in `bridge/`, and
+`cargo test --manifest-path contactsolutions-store/Cargo.toml`, `go test ./...` in `bridge/`, and
 `build.ps1`, then verify a successful main-branch CI run on that exact commit. The tag workflow
 builds and publishes both packages. Verify the public release assets and their SHA-256 digests.
 See [the window verification guide](packaging/window-verification.md) for isolated native checks
@@ -190,18 +193,18 @@ and the distinction between automated window checks and physical desktop interac
 - **Google won't let you sign in** in the sign-in window ("this browser may not be secure"): try
   again later, or pair with a QR code if your phone offers one.
 - **"Your phone isn't responding."** The phone is off, asleep without data, or has no connection.
-  MessageCraft reconnects on its own when the phone answers again.
+  MessageSolutions reconnects on its own when the phone answers again.
 - **A message says "Not sent".** Right-click it and choose **Try sending again**. If it keeps
   failing, check that Google Messages is your phone's default SMS app.
 - **Anything else:** look in `bridge.log` (File › Info › Open data folder).
 
 ## Licences
 
-- **`bridge/` (messagecraft-bridge.exe)** links libgm, which is **AGPL-3.0**. The helper is
+- **`bridge/` (messagesolutions-bridge.exe)** links libgm, which is **AGPL-3.0**. The helper is
   therefore distributed under the AGPL-3.0, and its source is this folder.
-- **The window (`src/`, `web/`)** is MIT OR Apache-2.0. It follows MailCraft's design values (MIT
+- **The window (`src/`, `web/`)** is MIT OR Apache-2.0. It follows the original MailCraft design values (MIT
   OR Apache-2.0).
-- **contactcraft-store** is MIT, with its license in `contactcraft-store/LICENSE`.
+- **contactsolutions-store** is MIT, with its license in `contactsolutions-store/LICENSE`.
 - **Inter** typeface: SIL Open Font License 1.1 (`assets/fonts/OFL-Inter.txt`).
 
 See [NOTICE.md](NOTICE.md) for details.

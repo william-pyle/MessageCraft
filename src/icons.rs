@@ -1,4 +1,4 @@
-//! MessageCraft's icons, drawn in code on a 20×20 grid in one stroke, in the manner of MailCraft's
+//! MessageSolutions's icons, drawn in code on a 20×20 grid in one stroke, in the manner of MailCraft's
 //! icon set (ink plus one accent part). Original drawings.
 
 use egui::{Color32, Painter, Pos2, Rect, Shape, Stroke, pos2, vec2};

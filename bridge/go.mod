@@ -1,4 +1,4 @@
-module messagecraft/bridge
+module messagesolutions/bridge
 
 go 1.27.4
 

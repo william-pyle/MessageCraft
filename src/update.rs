@@ -7,7 +7,7 @@ use std::os::windows::process::CommandExt;
 
 use serde::Deserialize;
 
-const RELEASES_URL: &str = "https://github.com/william-pyle/MessageCraft/releases/latest";
+const RELEASES_URL: &str = "https://github.com/william-pyle/MessageSolutions/releases/latest";
 
 #[derive(Clone, Deserialize)]
 pub struct Release {

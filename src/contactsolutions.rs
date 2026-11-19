@@ -1,18 +1,18 @@
-//! Contacts from ContactCraft (github.com/william-pyle/ContactCraft): its shared contact store,
-//! `%APPDATA%\ContactCraft\contacts.db`, read through ContactCraft's own `contactcraft-store`
+//! Contacts from ContactSolutions (github.com/william-pyle/ContactSolutions): its shared contact store,
+//! `%APPDATA%\ContactSolutions\contacts.db`, read through ContactSolutions's own `contactsolutions-store`
 //! crate. Nothing has to be running. A worker thread owns the store (it isn't `Sync`); the window
 //! asks through a channel and never waits on the disk.
 //!
-//! Contacts are read-only here. Adding or changing one starts ContactCraft's own editor window
-//! (`ContactCraft.exe --edit-phone <number>`, `--edit-contact <id>`, `--new-contact`), which
-//! saves into the same store; MessageCraft sees the change through the store's revision.
+//! Contacts are read-only here. Adding or changing one starts ContactSolutions's own editor window
+//! (`ContactSolutions.exe --edit-phone <number>`, `--edit-contact <id>`, `--new-contact`), which
+//! saves into the same store; MessageSolutions sees the change through the store's revision.
 
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::{Duration, Instant};
 
-pub use contactcraft_store::{Contact, ContactGroup};
-use contactcraft_store::Store;
+pub use contactsolutions_store::{Contact, ContactGroup};
+use contactsolutions_store::Store;
 
 /// What the worker sends back.
 pub enum Reply {
@@ -20,7 +20,7 @@ pub enum Reply {
     Unavailable(String),
     /// Everything, after opening or after a change elsewhere. `dir` is the store's folder.
     All { contacts: Vec<Paths>, groups: Vec<GroupPaths>, exe: Option<PathBuf> },
-    /// ContactCraft's editor window closed.
+    /// ContactSolutions's editor window closed.
     Edited(EditOutcome),
 }
 
@@ -55,7 +55,7 @@ pub enum EditOutcome {
 pub enum Request {
     /// Look at the store again now (it checks the revision every two seconds anyway).
     Refresh,
-    /// Open ContactCraft's editor with these arguments; the answer is `Edited`.
+    /// Open ContactSolutions's editor with these arguments; the answer is `Edited`.
     Edit(Vec<String>),
 }
 
@@ -128,7 +128,7 @@ impl Link {
                     if r != revision {
                         revision = r;
                         match load(s) {
-                            Ok((contacts, groups)) => send(Reply::All { contacts, groups, exe: s.contactcraft_exe() }),
+                            Ok((contacts, groups)) => send(Reply::All { contacts, groups, exe: s.contactsolutions_exe() }),
                             Err(e) => send(Reply::Unavailable(e)),
                         }
                     }
@@ -136,9 +136,9 @@ impl Link {
                 match req_rx.recv_timeout(Duration::from_secs(2)) {
                     Ok(Request::Refresh) => revision = i64::MIN,
                     Ok(Request::Edit(args)) => {
-                        let exe = store.as_ref().and_then(|s| s.contactcraft_exe());
+                        let exe = store.as_ref().and_then(|s| s.contactsolutions_exe());
                         let Some(exe) = exe else {
-                            send(Reply::Edited(EditOutcome::Failed("ContactCraft isn't installed on this computer.".into())));
+                            send(Reply::Edited(EditOutcome::Failed("ContactSolutions isn't installed on this computer.".into())));
                             continue;
                         };
                         // Its editor runs in its own thread so the store keeps being watched.
@@ -167,24 +167,26 @@ fn run_editor(exe: &PathBuf, args: &[String]) -> EditOutcome {
     let group = args.iter().any(|arg| arg == "--new-group" || arg == "--open-group");
     let out = std::process::Command::new(exe).args(args).stdin(std::process::Stdio::null()).output();
     match out {
-        Err(e) => EditOutcome::Failed(format!("ContactCraft couldn't start: {e}")),
-        Ok(out) => {
-            let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            match out.status.code() {
-                Some(0) if group => EditOutcome::SavedGroup,
-                Some(0) => EditOutcome::Saved(text.strip_prefix("saved ").unwrap_or("").trim().to_string()),
-                Some(1) => EditOutcome::Cancelled,
-                _ => EditOutcome::Failed(text.strip_prefix("error ").map(str::to_string).unwrap_or_else(|| format!("ContactCraft couldn't open that {}.", if group { "group" } else { "contact" }))),
-            }
-        }
+        Err(e) => EditOutcome::Failed(format!("ContactSolutions couldn't start: {e}")),
+        Ok(out) => editor_result(group, out.status.code(), &String::from_utf8_lossy(&out.stdout)),
+    }
+}
+
+fn editor_result(group: bool, code: Option<i32>, output: &str) -> EditOutcome {
+    let text = output.trim();
+    match code {
+        Some(0) if group => EditOutcome::SavedGroup,
+        Some(0) => EditOutcome::Saved(text.strip_prefix("saved ").unwrap_or("").trim().to_string()),
+        Some(1) => EditOutcome::Cancelled,
+        _ => EditOutcome::Failed(text.strip_prefix("error ").map(str::to_string).unwrap_or_else(|| format!("ContactSolutions couldn't open that {}.", if group { "group" } else { "contact" }))),
     }
 }
 
 pub fn phone_key(number: &str) -> Option<String> {
-    contactcraft_store::phone_key(number)
+    contactsolutions_store::phone_key(number)
 }
 
-/// `#RRGGBB` to a colour; empty or malformed means "MessageCraft's own" (None).
+/// `#RRGGBB` to a colour; empty or malformed means "MessageSolutions's own" (None).
 pub fn color(s: &str) -> Option<egui::Color32> {
     let h = s.trim().trim_start_matches('#');
     if h.len() != 6 {
@@ -192,4 +194,37 @@ pub fn color(s: &str) -> Option<egui::Color32> {
     }
     let v = u32::from_str_radix(h, 16).ok()?;
     Some(egui::Color32::from_rgb((v >> 16) as u8, (v >> 8) as u8, v as u8))
+}
+
+#[cfg(test)]
+mod contract_tests {
+    use super::*;
+    #[test]
+    fn released_store_preserves_contacts_groups_media_discovery_and_revisions() {
+        let dir=std::env::temp_dir().join(format!("messagesolutions-contact-contract-{}",contactsolutions_store::new_id()));
+        let writer=Store::open(&dir).unwrap();
+        let mut c=Contact::new(); c.name.given="Synthetic".into();
+        c.phones.push(contactsolutions_store::Labeled::new("mobile","+1 202 555 0100"));
+        c.extra.insert("original-id-note".into(),serde_json::json!("keep"));
+        writer.save(&mut c).unwrap();
+        let mut group=ContactGroup::new("Synthetic group"); group.add_contact(&c.id);
+        writer.set_banner(&mut group.theme,&group.id,b"\x89PNGsynthetic").unwrap(); writer.save_group(&mut group).unwrap();
+        let exe=dir.join("ContactSolutions.exe"); std::fs::write(&exe,b"synthetic discovery only, never executed").unwrap();
+        writer.set_meta("contactsolutions.exe",Some(exe.to_str().unwrap())).unwrap();
+        let reader=Store::open(&dir).unwrap(); let (contacts,groups)=load(&reader).unwrap();
+        assert_eq!(contacts[0].contact.id,c.id); assert_eq!(groups[0].group.id,group.id);
+        assert_eq!(groups[0].group.members,group.members); assert!(groups[0].banner.as_ref().unwrap().exists());
+        assert_eq!(reader.contactsolutions_exe(),Some(exe));
+        assert_eq!(reader.find_by_phone("202-555-0100").unwrap().unwrap().id,c.id);
+        let before=reader.revision(); c.name.given="Updated fixture".into(); writer.save(&mut c).unwrap();
+        assert!(reader.revision()>before); assert_eq!(load(&reader).unwrap().0[0].contact.name.given,"Updated fixture");
+        drop(reader); drop(writer); std::fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn published_editor_exit_protocol_is_preserved() {
+        assert!(matches!(editor_result(false,Some(0),"saved stable-contact\r\n"),EditOutcome::Saved(id) if id=="stable-contact"));
+        assert!(matches!(editor_result(true,Some(0),"saved stable-group"),EditOutcome::SavedGroup));
+        assert!(matches!(editor_result(false,Some(1),""),EditOutcome::Cancelled));
+        assert!(matches!(editor_result(false,Some(2),"error synthetic failure"),EditOutcome::Failed(e) if e=="synthetic failure"));
+    }
 }
