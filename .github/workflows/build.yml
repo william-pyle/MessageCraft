@@ -6,15 +6,31 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: 'Optional main run ID: verify its candidate without building or publishing'
+        type: string
+        default: ''
 
 permissions:
-  contents: write
+  contents: read
+
+# Never cancel a tag promotion. Dispatches cannot cancel the main push gate.
+concurrency:
+  group: build-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   windows:
+    if: github.ref_type != 'tag' && inputs.candidate_run_id == ''
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Test release safeguards
+        run: python -m unittest discover -s packaging/ci -p "test_*.py" -v
 
       - uses: actions/setup-go@v5
         with:
@@ -22,22 +38,28 @@ jobs:
           cache-dependency-path: bridge/go.sum
 
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.100.0'
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            contactsolutions-store -> target
+          save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
       - name: Verify release version
-        shell: pwsh
-        run: |
-          $version = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1).Matches[0].Groups[1].Value
-          if ((Get-Content package.json | ConvertFrom-Json).version -ne $version) { throw 'Package versions differ' }
-          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$version") { throw 'Tag differs from package version' }
+        run: python packaging/ci/release.py version
 
       - name: Install WiX (for the installer)
         shell: pwsh
         run: |
           dotnet tool install --global wix --version 5.0.2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           wix extension add -g WixToolset.UI.wixext/5.0.2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           wix extension add -g WixToolset.Util.wixext/5.0.2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Test Rust application and shared store
         shell: pwsh
@@ -55,19 +77,71 @@ jobs:
         shell: pwsh
         run: ./build.ps1
 
+      - name: Seal release candidate
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: python packaging/ci/release.py stage
+
       - uses: actions/upload-artifact@v4
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          name: release-${{ github.sha }}-${{ github.run_attempt }}
+          path: dist/promotion/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        if: github.event_name != 'push' || github.ref != 'refs/heads/main'
         with:
           name: MessageSolutions-windows
           path: dist/
+          if-no-files-found: error
+          compression-level: 0
 
-      - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+  verify-candidate:
+    if: github.event_name == 'workflow_dispatch' && inputs.candidate_run_id != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+    steps:
+      - uses: actions/checkout@v4
         with:
-          files: |
-            dist/MessageSolutions-windows-x64.msi
-            dist/MessageSolutions-windows.zip
-          name: MessageSolutions ${{ github.ref_name }}
-          body_path: packaging/release-notes.md
-          generate_release_notes: true
-          fail_on_unmatched_files: true
+          persist-credentials: false
+      - name: Test release safeguards on Linux
+        run: python -m unittest discover -s packaging/ci -p "test_*.py" -v
+      - name: Rehearse promotion without publication
+        run: python packaging/ci/release.py verify-run "$CANDIDATE_RUN_ID" dist/promotion
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Verify and download exact-commit main candidate
+        run: python packaging/ci/release.py prepare
+
+      # gh release create refuses existing releases; never clobber their assets.
+      - name: Publish verified bytes
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "MessageSolutions $RELEASE_TAG" --notes-file dist/promotion/release-notes.md \
+            --generate-notes dist/promotion/MessageSolutions-windows-x64.msi \
+            dist/promotion/MessageSolutions-windows.zip
+
+      - name: Verify public final bytes
+        run: python packaging/ci/release.py published

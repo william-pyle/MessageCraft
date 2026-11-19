@@ -11,8 +11,13 @@ is byte-identical to its published v1.3.0 store; keep its MIT license and histor
 DPAPI entropy `MessageCraft session v1` is a permanent credential format contract.
 Legacy migration readers and legal/history references are intentional exceptions.
 
-For releases run cargo test --locked, cargo test --manifest-path
+For releases require cargo test --locked, cargo test --manifest-path
 contactsolutions-store/Cargo.toml, go test ./... inside bridge and build.ps1.
+The successful exact-commit main Windows CI run supplies this evidence; do not
+repeat those full suites locally or on a tag without a changed-input reason.
+Run focused local checks for changes. Follow packaging/release-workflow.md:
+tags promote the immutable main candidate after producer and final-byte checks,
+and fail closed rather than rebuilding when evidence is missing or mismatched.
 Use isolated synthetic profiles for native/credential tests. Never read live
 profiles or close a user's session. Before tagging, finish versions/docs/workflow,
 push main and require green Windows CI for that exact commit. Tagging v1.6.0 is

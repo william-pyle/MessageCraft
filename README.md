@@ -167,21 +167,18 @@ The output goes to `dist\`:
 
 ### Continuous builds and releases
 
-`.github/workflows/build.yml` builds every push and pull request on Windows and uploads `dist\` as
-an artifact. To publish a release, push a version tag:
+`.github/workflows/build.yml` tests and packages main pushes, pull requests and manual branch runs
+on Windows. Successful main pushes produce immutable release candidates. A version tag promotes
+the exact commit's verified main candidate into a GitHub Release with the MSI and portable ZIP;
+it does not repeat compilation, tests or packaging. Existing releases are never overwritten.
 
-```powershell
-git tag -a v1.6.0 -m "MessageSolutions 1.6.0"
-git push origin v1.6.0
-```
-
-The workflow then creates a GitHub Release with the installer (`MessageSolutions-windows-x64.msi`) and
-the portable zip attached.
-
-Before tagging, finish source/version/release notes, run `cargo test --locked`,
-`cargo test --manifest-path contactsolutions-store/Cargo.toml`, `go test ./...` in `bridge/`, and
-`build.ps1`, then verify a successful main-branch CI run on that exact commit. The tag workflow
-builds and publishes both packages. Verify the public release assets and their SHA-256 digests.
+Before tagging, finish source/version/release notes and require successful exact-commit main CI:
+`cargo test --locked`, `cargo test --manifest-path contactsolutions-store/Cargo.toml`,
+`go test ./...` in `bridge/`, and `build.ps1`. These commands run once in that producer; local
+checks should target changed behavior rather than repeat already-green suites. Promotion checks
+repository/workflow/run/attempt/commit, version, toolchain/target/features and SHA-256 hashes.
+Missing or expired candidates fail closed. See [the release sequence](packaging/release-workflow.md)
+for recovery, retained gates and public final-byte verification. Published 1.6.0 is unchanged.
 See [the window verification guide](packaging/window-verification.md) for isolated native checks
 and the distinction between automated window checks and physical desktop interaction.
 

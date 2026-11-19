@@ -118,7 +118,7 @@ name and generated folder become MessageSolutions and
 attributions retain old names. The existing GitHub repository is renamed only
 after local validation and exact-commit main CI; its repository ID stays 1454531959.
 
-## Release gate
+## Historical 1.6.0 release gate
 
 Finish versions, this guide, notes and workflow before the release commit. Run
 `cargo test --locked`, `cargo test --manifest-path contactsolutions-store/Cargo.toml`,
@@ -128,3 +128,8 @@ require a successful Windows Build on that exact commit before creating/pushing
 `v1.6.0`. Verify release/tag SHA, public MSI/ZIP hashes, versions/resources, MSI
 upgrade/component identity, extracted payload and packaged updater lookup. Build,
 publish, install and observed native interaction are separate lifecycle states.
+
+For future releases, use [the current release sequence](../packaging/release-workflow.md).
+The exact-commit main Windows producer satisfies the required suites/build; tags
+promote its verified immutable bytes instead of rebuilding. The 1.6.0 procedure
+and published assets above remain historical evidence, not a request to retag.

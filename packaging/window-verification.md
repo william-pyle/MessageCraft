@@ -21,6 +21,10 @@ Run `cargo test --locked`, `cargo test --manifest-path contactsolutions-store/Ca
 The Rust tests cover eight edge/corner directions at 100/200/300% geometry scales, interior
 exclusion and toolbar spacing at different widths/zoom. CI runs both Rust suites and the
 Go check before building MSI and portable packages.
+The exact-commit main CI run supplies the full-suite/build evidence; do not rerun
+those suites on tags or locally without changed inputs. For release promotion and
+failure recovery, follow [release-workflow.md](release-workflow.md). Native checks
+are still required when window behavior changes, using only synthetic fixtures.
 
 Development builds also include an opt-in smoke harness. It never runs in release builds.
 Use a **fresh isolated fixture**, never an active user's APPDATA:
