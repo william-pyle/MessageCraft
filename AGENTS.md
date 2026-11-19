@@ -23,3 +23,9 @@ real-profile launch, login/send or restart is authorized by this task.
 Update Alpha's projects/messagecraft/project.json and build.mjs output as facts
 change, retaining stable project ID/routes and canonical ID-based folder. The
 MailSolutions checkout and canonical records are handled by a separate terminal.
+
+For every new commit subject and body, use MessageSolutions, MailSolutions or
+neutral wording. Never use MessageCraft or MailCraft in a new commit message.
+Before pushing, inspect the complete messages of every outgoing commit, including
+their bodies. This rule is prospective: do not amend published historical commits,
+rewrite existing history or force-push to remove earlier product names.
