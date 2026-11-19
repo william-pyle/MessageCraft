@@ -95,7 +95,10 @@ pub fn prepare_at(roaming: &Path) -> Result<PathBuf> {
     }
     if fingerprint.contains_key(RECEIPT) { return Err("Legacy profile already has a migration receipt; resolve its history explicitly.".into()); }
     fs::create_dir(&stage).map_err(err)?;
-    for ((rel, input), expected) in files.iter().zip(handles.iter_mut()).zip(fingerprint.values()) {
+    for (rel, input) in files.iter().zip(handles.iter_mut()) {
+        // Path component ordering differs from string ordering (e.g. media/file
+        // versus media.bin). Match hashes by their exact filename, never position.
+        let expected = fingerprint.get(rel.to_str().ok_or("Profile filenames must be Unicode")?).unwrap();
         let target = stage.join(rel);
         fs::create_dir_all(target.parent().unwrap()).map_err(err)?;
         let mut output = OpenOptions::new().create_new(true).read(true).write(true).open(target).map_err(err)?;
@@ -134,8 +137,10 @@ mod tests {
     impl Drop for Fixture { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
     #[test]
     fn copy_preserves_all_bytes_ids_settings_and_source_and_detects_divergence() {
-        let f=Fixture::new(); let dest=prepare_at(&f.0).unwrap();
-        for file in ["ui.json","cache.json","session.bin","media/keep.bin"] { assert_eq!(fs::read(dest.join(file)).unwrap(), fs::read(f.0.join("MessageCraft").join(file)).unwrap()); }
+        let f=Fixture::new();
+        fs::write(f.0.join("MessageCraft/media.bin"), b"synthetic root file with a directory prefix").unwrap();
+        let dest=prepare_at(&f.0).unwrap();
+        for file in ["ui.json","cache.json","session.bin","media/keep.bin","media.bin"] { assert_eq!(fs::read(dest.join(file)).unwrap(), fs::read(f.0.join("MessageCraft").join(file)).unwrap()); }
         let settings: crate::model::Settings=serde_json::from_slice(&fs::read(dest.join("ui.json")).unwrap()).unwrap();
         assert_eq!(serde_json::to_value(settings).unwrap()["future"]["keep"], true);
         assert_eq!(prepare_at(&f.0).unwrap(),dest);
